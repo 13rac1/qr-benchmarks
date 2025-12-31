@@ -58,9 +58,12 @@ type TestCase struct {
 //   - Pixel sizes: [320, 400, 440, 450, 460, 480, 512, 560] pixels (8 sizes)
 //   - Total: 6 × 8 = 48 test cases
 //
-// All test cases use binary content for consistency. The data sizes are chosen to
-// trigger QR versions 10-15, which are known to produce problematic fractional
-// module sizes at certain pixel dimensions.
+// All test cases use alphanumeric content (not binary) because QR encoders convert
+// data to strings, and binary data with null bytes doesn't round-trip correctly.
+// Alphanumeric data is string-safe and still tests the pixel size compatibility issue.
+//
+// The data sizes are chosen to trigger QR versions 10-15, which are known to produce
+// problematic fractional module sizes at certain pixel dimensions.
 //
 // Pixel sizes include:
 //   - 320, 400: Common mobile resolutions (low end)
@@ -68,7 +71,7 @@ type TestCase struct {
 //   - 460, 480: Transition zone
 //   - 512, 560: Higher resolutions (power-of-2 and above)
 //
-// The binary data is deterministic (uses fixed seed) for reproducible testing.
+// The alphanumeric data is deterministic (uses repeating pattern) for reproducible testing.
 func GeneratePixelSizeMatrix() []TestCase {
 	dataSizes := []int{500, 550, 600, 650, 750, 800}
 	pixelSizes := []int{320, 400, 440, 450, 460, 480, 512, 560}
@@ -76,14 +79,14 @@ func GeneratePixelSizeMatrix() []TestCase {
 	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes))
 
 	for _, dataSize := range dataSizes {
-		data := generateBinary(dataSize)
+		data := generateAlphanumeric(dataSize)
 		for _, pixelSize := range pixelSizes {
 			cases = append(cases, TestCase{
-				Name:        formatTestName("binary", dataSize, pixelSize),
+				Name:        formatTestName("alphanumeric", dataSize, pixelSize),
 				Data:        data,
 				DataSize:    dataSize,
 				PixelSize:   pixelSize,
-				ContentType: ContentBinary,
+				ContentType: ContentAlphanumeric,
 			})
 		}
 	}
