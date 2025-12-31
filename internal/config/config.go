@@ -58,6 +58,13 @@ type Config struct {
 	// Timestamp adds timestamp to output filenames.
 	// Default: true
 	Timestamp bool
+
+	// TestMode specifies which test matrix to use.
+	// Valid values: "standard", "comprehensive"
+	// - standard: 96 tests (6 data sizes × 8 pixel sizes × 2 content types)
+	// - comprehensive: 576 tests (12 data sizes × 12 pixel sizes × 4 content types)
+	// Default: "standard"
+	TestMode string
 }
 
 // DefaultConfig returns a Config with sensible defaults.
@@ -75,6 +82,7 @@ func DefaultConfig() *Config {
 		OutputDir:     "./results",
 		OutputFormats: []string{"markdown", "html"},
 		Timestamp:     true,
+		TestMode:      "standard",
 	}
 }
 
@@ -111,6 +119,7 @@ func RegisterFlags(fs *flag.FlagSet) (*Config, func() error) {
 	fs.StringVar(&cfg.OutputDir, "output", "./results", "Output directory for results")
 	fs.StringVar(&outputFormatsStr, "format", "", "Comma-separated output formats: markdown,html,csv (default: markdown,html)")
 	fs.BoolVar(&cfg.Timestamp, "timestamp", true, "Add timestamp to output filenames")
+	fs.StringVar(&cfg.TestMode, "test-mode", "standard", "Test matrix mode: standard (96 tests) or comprehensive (576 tests)")
 
 	// Return parse function to be called after fs.Parse()
 	parse := func() error {
@@ -183,6 +192,11 @@ func (c *Config) Validate() error {
 		if !isValidOutputFormat(format) {
 			return fmt.Errorf("invalid output format %q: must be markdown, html, or csv", format)
 		}
+	}
+
+	// Validate test mode
+	if c.TestMode != "standard" && c.TestMode != "comprehensive" {
+		return fmt.Errorf("invalid test-mode %q: must be 'standard' or 'comprehensive'", c.TestMode)
 	}
 
 	return nil

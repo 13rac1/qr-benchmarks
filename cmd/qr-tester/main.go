@@ -85,15 +85,23 @@ func run(cfg *config.Config) error {
 		return fmt.Errorf("no decoders available (check CGO build and skip flags)")
 	}
 
-	// Generate test data
-	testCases := testdata.GeneratePixelSizeMatrix()
+	// Generate test data based on test mode
+	var testCases []testdata.TestCase
+	switch cfg.TestMode {
+	case "comprehensive":
+		testCases = testdata.GenerateComprehensiveMatrix()
+	case "standard":
+		fallthrough
+	default:
+		testCases = testdata.GeneratePixelSizeMatrix()
+	}
 
 	// Create runner
 	runner := matrix.NewRunner(cfg, encoders, decoders, testCases)
 
 	// Calculate and display test count
 	totalTests := len(encoders) * len(decoders) * len(testCases)
-	fmt.Printf("Running %d test combinations...\n", totalTests)
+	fmt.Printf("Running %d test combinations (%s mode)...\n", totalTests, cfg.TestMode)
 	fmt.Printf("  Encoders: %d\n", len(encoders))
 	fmt.Printf("  Decoders: %d\n", len(decoders))
 	fmt.Printf("  Test cases: %d\n\n", len(testCases))

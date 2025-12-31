@@ -107,6 +107,124 @@ func GeneratePixelSizeMatrix() []TestCase {
 	return cases
 }
 
+// GenerateComprehensiveMatrix generates an extensive test matrix for comprehensive testing.
+// This test suite covers a wide range of configurations to find edge cases and determine
+// the best encoder/decoder combinations across all scenarios.
+//
+// Matrix dimensions:
+//   - Data sizes: 12 sizes from 10 to 2500 bytes (covers QR versions 1-32)
+//   - Pixel sizes: 12 sizes from 128 to 1024 pixels (covers tiny to high-res)
+//   - Content types: All 4 types (numeric, alphanumeric, binary, UTF-8)
+//   - Total: 12 × 12 × 4 = 576 test cases per encoder/decoder pair
+//
+// Data size progression:
+//   - Tiny: 10, 25, 50 bytes (QR versions 1-2)
+//   - Small: 100, 200, 300 bytes (QR versions 3-6)
+//   - Medium: 500, 700, 1000 bytes (QR versions 10-15)
+//   - Large: 1500, 2000, 2500 bytes (QR versions 20-32)
+//
+// Pixel size progression:
+//   - Minimal: 128, 200, 256 (edge cases, likely failures)
+//   - Small: 320, 400 (mobile low-end)
+//   - Medium: 450, 480, 512 (fractional module boundaries)
+//   - Standard: 600, 720 (common sizes)
+//   - Large: 800, 1024 (high resolution, always works)
+//
+// Content types tested:
+//   - Numeric: Most efficient QR encoding (3.3 bits/char)
+//   - Alphanumeric: Medium efficiency (5.5 bits/char), tuotoo padding issue
+//   - Binary: Random bytes (8 bits/byte)
+//   - UTF-8: Real-world text forcing byte mode
+//
+// This comprehensive test helps identify:
+//   - Minimum viable pixel sizes for each data size
+//   - Optimal encoder/decoder combinations
+//   - Data type encoding mode issues
+//   - Fractional module size boundaries
+//   - Maximum capacity limits
+func GenerateComprehensiveMatrix() []TestCase {
+	// Comprehensive data size progression (12 sizes covering QR versions 1-32)
+	dataSizes := []int{
+		10,    // Tiny - QR version 1
+		25,    // Tiny - QR version 1
+		50,    // Small - QR version 2
+		100,   // Small - QR version 3
+		200,   // Small - QR version 5
+		300,   // Medium-small - QR version 6-7
+		500,   // Medium - QR version 10
+		700,   // Medium - QR version 12
+		1000,  // Medium-large - QR version 15
+		1500,  // Large - QR version 20
+		2000,  // Large - QR version 25
+		2500,  // Very large - QR version 32 (near max at medium EC)
+	}
+
+	// Comprehensive pixel size progression (12 sizes from minimal to high-res)
+	pixelSizes := []int{
+		128,  // Minimal - will fail for larger QR versions
+		200,  // Minimal - edge case testing
+		256,  // Small - mobile low-end
+		320,  // Small - common mobile
+		400,  // Medium - tablet/mobile
+		450,  // Medium - fractional module boundary
+		480,  // Medium
+		512,  // Medium - power of 2
+		600,  // Standard - common size
+		720,  // Standard - 720p derivative
+		800,  // Large - high resolution
+		1024, // Large - power of 2, always works
+	}
+
+	// Pre-allocate for all combinations: 12 sizes × 12 pixels × 4 content types
+	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes)*4)
+
+	for _, dataSize := range dataSizes {
+		for _, pixelSize := range pixelSizes {
+			// Test 1: Numeric data (most efficient encoding)
+			numericData := generateNumeric(dataSize)
+			cases = append(cases, TestCase{
+				Name:        formatTestName("numeric", dataSize, pixelSize),
+				Data:        numericData,
+				DataSize:    dataSize,
+				PixelSize:   pixelSize,
+				ContentType: ContentNumeric,
+			})
+
+			// Test 2: Alphanumeric data (medium efficiency, tuotoo padding issue)
+			alphaData := generateAlphanumeric(dataSize)
+			cases = append(cases, TestCase{
+				Name:        formatTestName("alphanumeric", dataSize, pixelSize),
+				Data:        alphaData,
+				DataSize:    dataSize,
+				PixelSize:   pixelSize,
+				ContentType: ContentAlphanumeric,
+			})
+
+			// Test 3: Binary data (random bytes, 8 bits per byte)
+			binaryData := generateBinary(dataSize)
+			cases = append(cases, TestCase{
+				Name:        formatTestName("binary", dataSize, pixelSize),
+				Data:        binaryData,
+				DataSize:    dataSize,
+				PixelSize:   pixelSize,
+				ContentType: ContentBinary,
+			})
+
+			// Test 4: UTF-8 data (forces byte mode, real-world text)
+			utf8Data := generateUTF8(dataSize)
+			cases = append(cases, TestCase{
+				Name:        formatTestName("utf8", dataSize, pixelSize),
+				Data:        utf8Data,
+				DataSize:    dataSize,
+				PixelSize:   pixelSize,
+				ContentType: ContentUTF8,
+			})
+		}
+	}
+
+	return cases
+}
+
 // GenerateEdgeCases generates secondary test cases for edge conditions.
 // These tests verify encoder/decoder behavior with unusual inputs:
 //
