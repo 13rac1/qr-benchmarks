@@ -2,6 +2,7 @@
 package report
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -113,14 +114,38 @@ func (r *MarkdownReporter) buildSummary(results []matrix.TestResult) string {
 
 	total := len(results)
 	successful := 0
+	encodeFailures := 0
+	decodeFailures := 0
+	dataMismatchFails := 0
 	var totalEncodeTime, totalDecodeTime time.Duration
 
 	for _, result := range results {
-		if result.Success && result.DataMatches {
-			successful++
-		}
 		totalEncodeTime += result.EncodeTime
 		totalDecodeTime += result.DecodeTime
+
+		if result.Error == nil {
+			successful++
+			continue
+		}
+
+		// Categorize failure type
+		var encErr matrix.EncodeError
+		if errors.As(result.Error, &encErr) {
+			encodeFailures++
+			continue
+		}
+
+		var decErr matrix.DecodeError
+		if errors.As(result.Error, &decErr) {
+			decodeFailures++
+			continue
+		}
+
+		var dataErr matrix.DataMismatchError
+		if errors.As(result.Error, &dataErr) {
+			dataMismatchFails++
+			continue
+		}
 	}
 
 	failed := total - successful
@@ -140,6 +165,11 @@ func (r *MarkdownReporter) buildSummary(results []matrix.TestResult) string {
 	b.WriteString(fmt.Sprintf("- **Total Tests:** %d\n", total))
 	b.WriteString(fmt.Sprintf("- **Successful:** %d (%.1f%%)\n", successful, successRate))
 	b.WriteString(fmt.Sprintf("- **Failed:** %d (%.1f%%)\n", failed, 100.0-successRate))
+	if encodeFailures > 0 || decodeFailures > 0 || dataMismatchFails > 0 {
+		b.WriteString(fmt.Sprintf("  - Encode failures: %d (capacity limits)\n", encodeFailures))
+		b.WriteString(fmt.Sprintf("  - Decode failures: %d (decoder issues)\n", decodeFailures))
+		b.WriteString(fmt.Sprintf("  - Data mismatches: %d (corruption)\n", dataMismatchFails))
+	}
 	b.WriteString(fmt.Sprintf("- **Average Encode Time:** %s\n", formatDuration(avgEncodeTime)))
 	b.WriteString(fmt.Sprintf("- **Average Decode Time:** %s\n", formatDuration(avgDecodeTime)))
 
@@ -199,7 +229,7 @@ func (r *MarkdownReporter) build2DMatrix(results []matrix.TestResult) string {
 			result := lookup[key]
 			if result == nil {
 				b.WriteString("     ")
-			} else if result.Success && result.DataMatches {
+			} else if result.Error == nil {
 				b.WriteString("  ✓  ")
 			} else {
 				b.WriteString("  ✗  ")
@@ -216,48 +246,109 @@ func (r *MarkdownReporter) build2DMatrix(results []matrix.TestResult) string {
 func (r *MarkdownReporter) buildFailureAnalysis(results []matrix.TestResult) string {
 	var b strings.Builder
 
-	// Collect failures
-	var failures []matrix.TestResult
+	// Group failures by error type
+	var encodeFailures []matrix.TestResult
+	var decodeFailures []matrix.TestResult
+	var dataMismatches []matrix.TestResult
+
 	for _, result := range results {
-		if !result.Success || !result.DataMatches {
-			failures = append(failures, result)
+		if result.Error == nil {
+			continue
+		}
+
+		var encErr matrix.EncodeError
+		if errors.As(result.Error, &encErr) {
+			encodeFailures = append(encodeFailures, result)
+			continue
+		}
+
+		var decErr matrix.DecodeError
+		if errors.As(result.Error, &decErr) {
+			decodeFailures = append(decodeFailures, result)
+			continue
+		}
+
+		var dataErr matrix.DataMismatchError
+		if errors.As(result.Error, &dataErr) {
+			dataMismatches = append(dataMismatches, result)
+			continue
 		}
 	}
 
-	if len(failures) == 0 {
+	totalFailures := len(encodeFailures) + len(decodeFailures) + len(dataMismatches)
+	if totalFailures == 0 {
 		b.WriteString("## Failure Analysis\n\n")
 		b.WriteString("No failures detected. All tests passed successfully.\n")
 		return b.String()
 	}
 
 	b.WriteString("## Failure Analysis\n\n")
-	b.WriteString(fmt.Sprintf("### Failed Combinations (%d)\n\n", len(failures)))
+	b.WriteString(fmt.Sprintf("### Failed Combinations (%d)\n\n", totalFailures))
 
-	// Sort failures by data size, then pixel size
-	sort.Slice(failures, func(i, j int) bool {
-		if failures[i].DataSize != failures[j].DataSize {
-			return failures[i].DataSize < failures[j].DataSize
-		}
-		return failures[i].PixelSize < failures[j].PixelSize
-	})
+	// Encode Failures
+	if len(encodeFailures) > 0 {
+		b.WriteString(fmt.Sprintf("#### Encode Failures (%d)\n\n", len(encodeFailures)))
+		b.WriteString("These failures indicate data exceeds QR code capacity at the requested pixel size.\n")
+		b.WriteString("This is NOT a reflection of encoder quality - it's a physical limitation.\n\n")
 
-	for i, f := range failures {
-		errorMsg := "Unknown error"
-		if f.Error != nil {
-			errorMsg = f.Error.Error()
+		sort.Slice(encodeFailures, func(i, j int) bool {
+			if encodeFailures[i].DataSize != encodeFailures[j].DataSize {
+				return encodeFailures[i].DataSize < encodeFailures[j].DataSize
+			}
+			return encodeFailures[i].PixelSize < encodeFailures[j].PixelSize
+		})
+
+		for i, f := range encodeFailures {
+			b.WriteString(fmt.Sprintf("%d. %d bytes @ %dpx - %s\n", i+1, f.DataSize, f.PixelSize, f.Error.Error()))
 		}
-		b.WriteString(fmt.Sprintf("%d. %d bytes @ %dpx - %s\n", i+1, f.DataSize, f.PixelSize, errorMsg))
+		b.WriteString("\n")
+	}
+
+	// Decode Failures
+	if len(decodeFailures) > 0 {
+		b.WriteString(fmt.Sprintf("#### Decode Failures (%d)\n\n", len(decodeFailures)))
+		b.WriteString("These failures indicate actual decoder limitations or bugs.\n\n")
+
+		sort.Slice(decodeFailures, func(i, j int) bool {
+			if decodeFailures[i].DataSize != decodeFailures[j].DataSize {
+				return decodeFailures[i].DataSize < decodeFailures[j].DataSize
+			}
+			return decodeFailures[i].PixelSize < decodeFailures[j].PixelSize
+		})
+
+		for i, f := range decodeFailures {
+			b.WriteString(fmt.Sprintf("%d. %d bytes @ %dpx - %s\n", i+1, f.DataSize, f.PixelSize, f.Error.Error()))
+		}
+		b.WriteString("\n")
+	}
+
+	// Data Mismatches
+	if len(dataMismatches) > 0 {
+		b.WriteString(fmt.Sprintf("#### Data Mismatches (%d)\n\n", len(dataMismatches)))
+		b.WriteString("Decoding succeeded but returned incorrect data (possible corruption).\n\n")
+
+		sort.Slice(dataMismatches, func(i, j int) bool {
+			if dataMismatches[i].DataSize != dataMismatches[j].DataSize {
+				return dataMismatches[i].DataSize < dataMismatches[j].DataSize
+			}
+			return dataMismatches[i].PixelSize < dataMismatches[j].PixelSize
+		})
+
+		for i, f := range dataMismatches {
+			b.WriteString(fmt.Sprintf("%d. %d bytes @ %dpx - %s\n", i+1, f.DataSize, f.PixelSize, f.Error.Error()))
+		}
+		b.WriteString("\n")
 	}
 
 	// Analyze patterns
-	b.WriteString("\n### Patterns\n\n")
+	b.WriteString("### Patterns\n\n")
 
 	// Count failures by pixel size
 	pixelFailures := make(map[int]int)
 	pixelTotal := make(map[int]int)
 	for _, result := range results {
 		pixelTotal[result.PixelSize]++
-		if !result.Success || !result.DataMatches {
+		if result.Error != nil {
 			pixelFailures[result.PixelSize]++
 		}
 	}
@@ -325,7 +416,7 @@ func (r *MarkdownReporter) buildModuleInfo(results []matrix.TestResult) string {
 		info.modulePixelSize = result.ModulePixelSize
 		info.isFractional = result.IsFractionalModule
 
-		if result.Success && result.DataMatches {
+		if result.Error == nil {
 			info.hasSuccess = true
 		} else {
 			info.hasFailure = true
@@ -443,9 +534,9 @@ func (r *MarkdownReporter) hasNonMonotonicFailures(results []matrix.TestResult) 
 
 		// Look for pattern: success followed by failure followed by success
 		for i := 1; i < len(group)-1; i++ {
-			prevSuccess := group[i-1].Success && group[i-1].DataMatches
-			currFail := !group[i].Success || !group[i].DataMatches
-			nextSuccess := group[i+1].Success && group[i+1].DataMatches
+			prevSuccess := group[i-1].Error == nil
+			currFail := group[i].Error != nil
+			nextSuccess := group[i+1].Error == nil
 
 			if prevSuccess && currFail && nextSuccess {
 				return true
@@ -498,7 +589,7 @@ func (r *MarkdownReporter) buildDataTypeAnalysis(results []matrix.TestResult, de
 			byType[typeName] = s
 		}
 		s.total++
-		if result.Success && result.DataMatches {
+		if result.Error == nil {
 			s.successful++
 		} else {
 			s.failures = append(s.failures, result)
@@ -572,14 +663,14 @@ func (r *MarkdownReporter) buildDecoderLimitations(decoder string, results []mat
 			isUTF8 := result.ContentType == "utf8"
 
 			if isAlpha {
-				if !result.Success || !result.DataMatches {
+				if result.Error != nil {
 					alphaFails++
 				} else {
 					alphaSuccess++
 				}
 			}
 			if isUTF8 {
-				if !result.Success || !result.DataMatches {
+				if result.Error != nil {
 					utf8Fails++
 				} else {
 					utf8Success++

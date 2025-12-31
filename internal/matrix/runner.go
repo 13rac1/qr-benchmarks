@@ -3,6 +3,7 @@ package matrix
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"time"
 
@@ -125,8 +126,7 @@ func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec d
 	result.EncodeTime = time.Since(encodeStart)
 
 	if err != nil {
-		result.Success = false
-		result.Error = fmt.Errorf("encode failed: %w", err)
+		result.Error = EncodeError{Err: err}
 		return result
 	}
 
@@ -151,17 +151,18 @@ func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec d
 	result.DecodeTime = time.Since(decodeStart)
 
 	if err != nil {
-		result.Success = false
-		result.Error = fmt.Errorf("decode failed: %w", err)
+		result.Error = DecodeError{Err: err}
 		return result
 	}
 
 	// Validate decoded data matches original
-	result.Success = true
-	result.DataMatches = bytes.Equal(testCase.Data, decodedData)
-
-	if !result.DataMatches {
-		result.Error = fmt.Errorf("data mismatch: expected %d bytes, got %d bytes", len(testCase.Data), len(decodedData))
+	if !bytes.Equal(testCase.Data, decodedData) {
+		result.Error = DataMismatchError{
+			Expected: len(testCase.Data),
+			Got:      len(decodedData),
+		}
+	} else {
+		result.Error = nil
 	}
 
 	return result
@@ -170,12 +171,27 @@ func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec d
 // printProgress outputs real-time test progress to stdout.
 // Shows test number, status (✓/✗), data type, dimensions, encoder, and timing.
 func (r *Runner) printProgress(testNum, totalTests int, testCase testdata.TestCase, enc encoders.Encoder, dec decoders.Decoder, result TestResult) {
-	// Determine status symbol and color
+	// Determine status symbol and color based on error type
 	status := "✓"
 	statusColor := "\033[32m" // Green
-	if !result.Success || !result.DataMatches {
-		status = "✗"
+
+	if result.Error != nil {
 		statusColor = "\033[31m" // Red
+
+		// Set status based on error type
+		var encErr EncodeError
+		var decErr DecodeError
+		var dataErr DataMismatchError
+
+		if errors.As(result.Error, &encErr) {
+			status = "✗ (encode)"
+		} else if errors.As(result.Error, &decErr) {
+			status = "✗ (decode)"
+		} else if errors.As(result.Error, &dataErr) {
+			status = "✗ (data)"
+		} else {
+			status = "✗"
+		}
 	}
 	reset := "\033[0m"
 
@@ -196,10 +212,8 @@ func (r *Runner) printProgress(testNum, totalTests int, testCase testdata.TestCa
 	)
 
 	// Print error details if failed
-	if !result.Success || !result.DataMatches {
-		if result.Error != nil {
-			fmt.Printf("  └─ %s\n", result.Error)
-		}
+	if result.Error != nil {
+		fmt.Printf("  └─ %s\n", result.Error)
 	}
 }
 

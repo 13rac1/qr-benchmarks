@@ -56,7 +56,7 @@ func TestIntegration_Skip2Gozxing(t *testing.T) {
 	fractionalFailures := 0
 
 	for _, result := range results.Results {
-		if result.Success && result.DataMatches {
+		if result.Error == nil {
 			successCount++
 		} else {
 			failureCount++
@@ -83,7 +83,7 @@ func TestIntegration_Skip2Gozxing(t *testing.T) {
 		if result.EncodeTime == 0 {
 			t.Errorf("Result %d: encode time not recorded", i)
 		}
-		if result.DecodeTime == 0 && result.Success {
+		if result.DecodeTime == 0 && result.Error == nil {
 			t.Errorf("Result %d: decode time not recorded for successful decode", i)
 		}
 	}

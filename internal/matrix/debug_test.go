@@ -35,12 +35,12 @@ func TestDebug_SingleCase(t *testing.T) {
 	}
 
 	result := results.Results[0]
-	t.Logf("Result: Success=%v, DataMatches=%v, Error=%v", result.Success, result.DataMatches, result.Error)
+	t.Logf("Result: Error=%v", result.Error)
 	t.Logf("EncodeTime: %v, DecodeTime: %v", result.EncodeTime, result.DecodeTime)
 	t.Logf("QRVersion: %d, ModuleCount: %d", result.QRVersion, result.ModuleCount)
 	t.Logf("ModulePixelSize: %.2f, IsFractional: %v", result.ModulePixelSize, result.IsFractionalModule)
 
-	if !result.Success || !result.DataMatches {
+	if result.Error != nil {
 		t.Errorf("Test failed: %v", result.Error)
 	}
 }
@@ -68,14 +68,9 @@ func TestDebug_BinaryData(t *testing.T) {
 	result := results.Results[0]
 	t.Logf("Test case: %s", cases[0].Name)
 	t.Logf("Data size: %d bytes, Pixel size: %d", cases[0].DataSize, cases[0].PixelSize)
-	t.Logf("Result: Success=%v, DataMatches=%v", result.Success, result.DataMatches)
+	t.Logf("Result: Error=%v", result.Error)
 	if result.Error != nil {
-		t.Logf("Error: %v", result.Error)
-	}
-
-	// Binary data may not round-trip correctly through string encoding
-	// This is expected and is part of what we're testing
-	if !result.Success {
+		t.Logf("Error details: %v", result.Error)
 		t.Logf("Note: Binary data encoding/decoding failed (this may be expected)")
 	}
 }

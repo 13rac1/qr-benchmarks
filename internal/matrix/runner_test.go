@@ -162,12 +162,8 @@ func TestRunner_RunAll_SingleTest(t *testing.T) {
 	}
 
 	// This simple test should succeed
-	if !result.Success {
+	if result.Error != nil {
 		t.Errorf("Result should succeed, got error: %v", result.Error)
-	}
-
-	if !result.DataMatches {
-		t.Error("Result data should match")
 	}
 }
 
@@ -279,7 +275,7 @@ func TestRunner_RunAll_WithPixelSizeMatrix(t *testing.T) {
 	failureCount := 0
 
 	for _, result := range results.Results {
-		if result.Success {
+		if result.Error == nil {
 			successCount++
 		} else {
 			failureCount++

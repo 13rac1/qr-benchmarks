@@ -1,7 +1,50 @@
 // Package matrix provides test execution and result aggregation for QR code compatibility testing.
 package matrix
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
+
+// EncodeError indicates that QR code encoding failed.
+// This typically means the data exceeds QR code capacity at the requested size.
+// Not a reflection of encoder quality - it's a physical/capacity limitation.
+type EncodeError struct {
+	Err error
+}
+
+func (e EncodeError) Error() string {
+	return fmt.Sprintf("encode failed: %v", e.Err)
+}
+
+func (e EncodeError) Unwrap() error {
+	return e.Err
+}
+
+// DecodeError indicates that QR code decoding failed.
+// This reflects actual decoder limitations or bugs.
+type DecodeError struct {
+	Err error
+}
+
+func (e DecodeError) Error() string {
+	return fmt.Sprintf("decode failed: %v", e.Err)
+}
+
+func (e DecodeError) Unwrap() error {
+	return e.Err
+}
+
+// DataMismatchError indicates that decoding succeeded but returned incorrect data.
+// This represents data corruption during the encode/decode cycle.
+type DataMismatchError struct {
+	Expected int // bytes expected
+	Got      int // bytes received
+}
+
+func (e DataMismatchError) Error() string {
+	return fmt.Sprintf("data mismatch: expected %d bytes, got %d bytes", e.Expected, e.Got)
+}
 
 // TestResult captures the outcome of a single encode→decode test cycle.
 // Each test uses one encoder, one decoder, one data payload, and one pixel size.
@@ -48,18 +91,13 @@ type TestResult struct {
 	// DecodeTime measures decoding duration.
 	DecodeTime time.Duration
 
-	// Success indicates whether the decode completed without error.
-	// False if decoding failed, timed out, or panicked.
-	Success bool
-
-	// Error captures the decode error if Success is false.
-	// Nil if Success is true.
+	// Error captures the test outcome.
+	// nil indicates success (encode, decode, and data validation all succeeded).
+	// Typed errors indicate failure mode:
+	//   - EncodeError: encoding failed (capacity limit)
+	//   - DecodeError: decoding failed (decoder issue)
+	//   - DataMismatchError: data corrupted (validation failure)
 	Error error
-
-	// DataMatches indicates whether decoded data equals input data.
-	// Only meaningful when Success is true.
-	// False indicates data corruption during encode/decode cycle.
-	DataMatches bool
 }
 
 // ModuleInfo captures QR code structural metadata.
