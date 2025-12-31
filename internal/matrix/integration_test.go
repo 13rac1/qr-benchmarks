@@ -34,8 +34,9 @@ func TestIntegration_Skip2Gozxing(t *testing.T) {
 		t.Fatal("RunAll() returned nil results")
 	}
 
-	// Should have 48 results (1 encoder × 1 decoder × 48 test cases)
-	expectedResults := 48
+	// Should have 96 results (1 encoder × 1 decoder × 96 test cases)
+	// 6 data sizes × 8 pixel sizes × 2 content types (alphanumeric + UTF-8)
+	expectedResults := 96
 	if len(results.Results) != expectedResults {
 		t.Errorf("RunAll() returned %d results, want %d", len(results.Results), expectedResults)
 	}

@@ -51,16 +51,18 @@ type TestCase struct {
 }
 
 // GeneratePixelSizeMatrix generates the primary test matrix for pixel size testing.
-// This is the core test set for reproducing the skip2+gozxing fractional module issue.
+// This is the core test set for reproducing the skip2+gozxing fractional module issue
+// and demonstrating encoding mode correlation with tuotoo decoder.
 //
 // Matrix dimensions:
 //   - Data sizes: [500, 550, 600, 650, 750, 800] bytes (6 sizes)
 //   - Pixel sizes: [320, 400, 440, 450, 460, 480, 512, 560] pixels (8 sizes)
-//   - Total: 6 × 8 = 48 test cases
+//   - Content types: Alphanumeric + UTF-8 (2 types)
+//   - Total: 6 × 8 × 2 = 96 test cases
 //
-// All test cases use alphanumeric content (not binary) because QR encoders convert
-// data to strings, and binary data with null bytes doesn't round-trip correctly.
-// Alphanumeric data is string-safe and still tests the pixel size compatibility issue.
+// Tests BOTH alphanumeric and UTF-8 data to demonstrate encoding mode correlation:
+//   - Alphanumeric data → QR alphanumeric mode → tuotoo padding issue
+//   - UTF-8 data → QR byte mode → tuotoo works correctly
 //
 // The data sizes are chosen to trigger QR versions 10-15, which are known to produce
 // problematic fractional module sizes at certain pixel dimensions.
@@ -71,22 +73,33 @@ type TestCase struct {
 //   - 460, 480: Transition zone
 //   - 512, 560: Higher resolutions (power-of-2 and above)
 //
-// The alphanumeric data is deterministic (uses repeating pattern) for reproducible testing.
+// The data is deterministic (uses repeating patterns) for reproducible testing.
 func GeneratePixelSizeMatrix() []TestCase {
 	dataSizes := []int{500, 550, 600, 650, 750, 800}
 	pixelSizes := []int{320, 400, 440, 450, 460, 480, 512, 560}
 
-	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes))
+	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes)*2)
 
 	for _, dataSize := range dataSizes {
-		data := generateAlphanumeric(dataSize)
 		for _, pixelSize := range pixelSizes {
+			// Test 1: Alphanumeric data (triggers alphanumeric mode)
+			alphaData := generateAlphanumeric(dataSize)
 			cases = append(cases, TestCase{
 				Name:        formatTestName("alphanumeric", dataSize, pixelSize),
-				Data:        data,
+				Data:        alphaData,
 				DataSize:    dataSize,
 				PixelSize:   pixelSize,
 				ContentType: ContentAlphanumeric,
+			})
+
+			// Test 2: UTF-8 data (forces byte mode)
+			utf8Data := generateUTF8(dataSize)
+			cases = append(cases, TestCase{
+				Name:        formatTestName("utf8", dataSize, pixelSize),
+				Data:        utf8Data,
+				DataSize:    dataSize,
+				PixelSize:   pixelSize,
+				ContentType: ContentUTF8,
 			})
 		}
 	}
@@ -155,15 +168,15 @@ func GenerateEdgeCases() []TestCase {
 		},
 		{
 			Name:        "utf8-multilingual",
-			Data:        generateUTF8("Hello World 你好世界 Привет мир こんにちは世界"),
-			DataSize:    len(generateUTF8("Hello World 你好世界 Привет мир こんにちは世界")),
+			Data:        utf8Bytes("Hello World 你好世界 Привет мир こんにちは世界"),
+			DataSize:    len(utf8Bytes("Hello World 你好世界 Привет мир こんにちは世界")),
 			PixelSize:   pixelSize,
 			ContentType: ContentUTF8,
 		},
 		{
 			Name:        "utf8-emoji",
-			Data:        generateUTF8("QR Code Testing 🔍📱✅❌🎉"),
-			DataSize:    len(generateUTF8("QR Code Testing 🔍📱✅❌🎉")),
+			Data:        utf8Bytes("QR Code Testing 🔍📱✅❌🎉"),
+			DataSize:    len(utf8Bytes("QR Code Testing 🔍📱✅❌🎉")),
 			PixelSize:   pixelSize,
 			ContentType: ContentUTF8,
 		},
@@ -212,6 +225,30 @@ func generateAlphanumeric(size int) []byte {
 	return result
 }
 
+// generateUTF8 creates UTF-8 string data that forces byte mode encoding.
+// Uses characters outside the QR alphanumeric set (multi-byte UTF-8 characters)
+// which cannot be encoded in alphanumeric mode, forcing QR byte mode.
+//
+// The data is deterministic: repeating pattern of mixed-script text.
+// This represents real-world international data and demonstrates encoding
+// mode correlation with decoder behavior.
+func generateUTF8(size int) []byte {
+	if size <= 0 {
+		return []byte{}
+	}
+
+	// Mix of ASCII, accented characters, and CJK characters
+	// These cannot be encoded in alphanumeric mode, forcing byte mode
+	pattern := "Hello世界Café你好Москва"
+	result := make([]byte, 0, size)
+
+	for len(result) < size {
+		result = append(result, []byte(pattern)...)
+	}
+
+	return result[:size]
+}
+
 // generateBinary creates deterministic pseudo-random binary data.
 // Uses a fixed seed (42) to ensure the same data is generated every time.
 //
@@ -237,12 +274,12 @@ func generateBinary(size int) []byte {
 	return data
 }
 
-// generateUTF8 encodes a UTF-8 string as bytes.
+// utf8Bytes encodes a UTF-8 string as bytes.
 // The content parameter should contain the exact Unicode text to encode.
 //
 // QR codes treat UTF-8 as binary data (no special encoding optimization).
 // This is useful for testing international text and emoji support.
-func generateUTF8(content string) []byte {
+func utf8Bytes(content string) []byte {
 	return []byte(content)
 }
 

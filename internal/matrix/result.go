@@ -19,6 +19,10 @@ type TestResult struct {
 	// Critical for identifying fractional module size issues.
 	PixelSize int
 
+	// ContentType identifies the data type used in this test.
+	// Used for analyzing encoding mode correlation with decoder behavior.
+	ContentType string
+
 	// QRVersion is the QR code version number (1-40).
 	// Determined by data size and error correction level.
 	// Version determines module count: moduleCount = 17 + 4*version.

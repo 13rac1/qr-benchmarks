@@ -78,6 +78,10 @@ func (r *MarkdownReporter) generateReport(results []matrix.TestResult, encoder, 
 	b.WriteString(r.buildSummary(results))
 	b.WriteString("\n")
 
+	// Data Type Analysis
+	b.WriteString(r.buildDataTypeAnalysis(results, decoder))
+	b.WriteString("\n")
+
 	// 2D Matrix
 	b.WriteString("## Compatibility Matrix\n\n")
 	b.WriteString(r.build2DMatrix(results))
@@ -95,6 +99,10 @@ func (r *MarkdownReporter) generateReport(results []matrix.TestResult, encoder, 
 
 	// Timing Analysis
 	b.WriteString(r.buildTimingAnalysis(results))
+	b.WriteString("\n")
+
+	// Known Decoder Limitations
+	b.WriteString(r.buildDecoderLimitations(decoder, results))
 
 	return b.String()
 }
@@ -461,4 +469,155 @@ func sanitizeFilename(name string) string {
 func formatDuration(d time.Duration) string {
 	ms := float64(d.Microseconds()) / 1000.0
 	return fmt.Sprintf("%.1fms", ms)
+}
+
+// buildDataTypeAnalysis generates a section showing success rates by content type.
+// For tuotoo decoder, includes special analysis showing alphanumeric vs UTF-8 correlation.
+func (r *MarkdownReporter) buildDataTypeAnalysis(results []matrix.TestResult, decoder string) string {
+	var b strings.Builder
+
+	b.WriteString("## Data Type Analysis\n\n")
+
+	// Group results by content type
+	type stats struct {
+		total      int
+		successful int
+		failures   []matrix.TestResult
+	}
+	byType := make(map[string]*stats)
+
+	for _, result := range results {
+		typeName := result.ContentType
+		if typeName == "" {
+			typeName = "Unknown"
+		}
+
+		s := byType[typeName]
+		if s == nil {
+			s = &stats{}
+			byType[typeName] = s
+		}
+		s.total++
+		if result.Success && result.DataMatches {
+			s.successful++
+		} else {
+			s.failures = append(s.failures, result)
+		}
+	}
+
+	// Build table
+	b.WriteString("| Content Type | Tests | Success | Failure | Success Rate |\n")
+	b.WriteString("|--------------|-------|---------|---------|-------------|\n")
+
+	// Sort content types for consistent output
+	types := make([]string, 0, len(byType))
+	for t := range byType {
+		types = append(types, t)
+	}
+	sort.Strings(types)
+
+	for _, typeName := range types {
+		s := byType[typeName]
+		successRate := 0.0
+		if s.total > 0 {
+			successRate = float64(s.successful) * 100.0 / float64(s.total)
+		}
+		failures := s.total - s.successful
+
+		b.WriteString(fmt.Sprintf("| %s | %d | %d | %d | %.1f%% |\n",
+			typeName, s.total, s.successful, failures, successRate))
+	}
+
+	b.WriteString("\n")
+
+	// Add tuotoo-specific analysis if this is tuotoo decoder
+	if decoder == "tuotoo" || strings.Contains(decoder, "tuotoo") {
+		b.WriteString("### tuotoo Decoder: Data Type Correlation\n\n")
+		b.WriteString("**Finding**: tuotoo decoder behavior varies by data type.\n\n")
+		b.WriteString("**Root Cause**:\n")
+		b.WriteString("- Alphanumeric data → QR alphanumeric mode encoding → tuotoo may include padding bytes\n")
+		b.WriteString("- UTF-8/Binary data → QR byte mode encoding → tuotoo works correctly\n\n")
+		b.WriteString("QR alphanumeric mode uses 11-bit encoding pairs and pads to complete segments.\n")
+		b.WriteString("tuotoo returns the full decoded segment including padding, while other decoders\n")
+		b.WriteString("strip padding to return only the original payload.\n\n")
+		b.WriteString("**Recommendation**:\n")
+		b.WriteString("1. Use binary or UTF-8 data with tuotoo decoder\n")
+		b.WriteString("2. OR use alternative decoders (gozxing, goqr) that handle alphanumeric mode correctly\n\n")
+	}
+
+	return b.String()
+}
+
+// buildDecoderLimitations documents known issues and limitations for specific decoders.
+func (r *MarkdownReporter) buildDecoderLimitations(decoder string, results []matrix.TestResult) string {
+	var b strings.Builder
+
+	b.WriteString("## Known Decoder Limitations\n\n")
+
+	switch {
+	case decoder == "tuotoo" || strings.Contains(decoder, "tuotoo"):
+		b.WriteString("### tuotoo Decoder\n\n")
+		b.WriteString("**Alphanumeric Mode Padding Issue**:\n")
+		b.WriteString("- tuotoo includes padding bytes when decoding alphanumeric-mode QR codes\n")
+		b.WriteString("- Results in data length mismatch (typically +11 to +17 extra bytes)\n")
+		b.WriteString("- Works correctly with byte-mode QR codes (binary, UTF-8 data)\n\n")
+
+		// Count failures by content type
+		alphaFails := 0
+		utf8Fails := 0
+		alphaSuccess := 0
+		utf8Success := 0
+		for _, result := range results {
+			isAlpha := result.ContentType == "alphanumeric"
+			isUTF8 := result.ContentType == "utf8"
+
+			if isAlpha {
+				if !result.Success || !result.DataMatches {
+					alphaFails++
+				} else {
+					alphaSuccess++
+				}
+			}
+			if isUTF8 {
+				if !result.Success || !result.DataMatches {
+					utf8Fails++
+				} else {
+					utf8Success++
+				}
+			}
+		}
+
+		b.WriteString("**Evidence from this test**:\n")
+		b.WriteString(fmt.Sprintf("- Alphanumeric data tests: %d successful, %d failed\n", alphaSuccess, alphaFails))
+		b.WriteString(fmt.Sprintf("- UTF-8/Binary data tests: %d successful, %d failed\n\n", utf8Success, utf8Fails))
+
+		b.WriteString("**Technical Details**:\n")
+		b.WriteString("QR alphanumeric mode encodes characters in 11-bit pairs and pads to complete segments.\n")
+		b.WriteString("Most decoders strip this padding when returning data, but tuotoo returns the full\n")
+		b.WriteString("decoded segment including padding bytes.\n\n")
+
+		b.WriteString("**Workaround**:\n")
+		b.WriteString("- Use binary or UTF-8 data (not pure alphanumeric)\n")
+		b.WriteString("- OR use alternative decoders (gozxing, goqr)\n\n")
+
+	case strings.Contains(decoder, "goqr"):
+		b.WriteString("### goqr Decoder\n\n")
+		b.WriteString("**Repository Status**: Archived (July 2021), read-only, no longer maintained.\n\n")
+		b.WriteString("**Known Issues**:\n")
+		b.WriteString("- May fail on some valid QR codes\n")
+		b.WriteString("- Unfixed bugs due to archived status\n\n")
+
+	case strings.Contains(decoder, "goquirc"):
+		b.WriteString("### goquirc Decoder\n\n")
+		b.WriteString("**CGO Dependency**: Requires C compiler and libquirc library.\n\n")
+		b.WriteString("**Build Requirements**:\n")
+		b.WriteString("- macOS: `brew install quirc`\n")
+		b.WriteString("- Ubuntu: `apt-get install libquirc-dev`\n")
+		b.WriteString("- Build: `make build-cgo`\n\n")
+
+	default:
+		b.WriteString("No known significant limitations for this decoder.\n\n")
+	}
+
+	return b.String()
 }

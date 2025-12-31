@@ -275,7 +275,7 @@ func TestGenerateBinary(t *testing.T) {
 	})
 }
 
-func TestGenerateUTF8(t *testing.T) {
+func TestUtf8Bytes(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -291,16 +291,16 @@ func TestGenerateUTF8(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := generateUTF8(tt.input)
+			result := utf8Bytes(tt.input)
 
 			if len(result) != tt.expected {
-				t.Errorf("generateUTF8(%q) returned %d bytes, expected %d",
+				t.Errorf("utf8Bytes(%q) returned %d bytes, expected %d",
 					tt.input, len(result), tt.expected)
 			}
 
 			// Verify round-trip
 			if string(result) != tt.input {
-				t.Errorf("generateUTF8(%q) = %q, not equal",
+				t.Errorf("utf8Bytes(%q) = %q, not equal",
 					tt.input, string(result))
 			}
 		})

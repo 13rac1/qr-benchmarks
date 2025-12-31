@@ -64,14 +64,19 @@ func (r *Runner) RunAll() (*CompatibilityMatrix, error) {
 	}
 
 	// Run all test combinations
+	testNum := 0
 	for _, testCase := range r.TestCases {
 		dataSizeMap[testCase.DataSize] = true
 		pixelSizeMap[testCase.PixelSize] = true
 
 		for _, encoder := range r.Encoders {
 			for _, decoder := range r.Decoders {
+				testNum++
 				result := r.runTest(testCase, encoder, decoder)
 				results = append(results, result)
+
+				// Print progress
+				r.printProgress(testNum, totalTests, testCase, encoder, decoder, result)
 			}
 		}
 	}
@@ -104,6 +109,7 @@ func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec d
 		DecoderName: dec.Name(),
 		DataSize:    testCase.DataSize,
 		PixelSize:   testCase.PixelSize,
+		ContentType: contentTypeToString(testCase.ContentType),
 		QRVersion:   -1, // Will be updated if version detection succeeds
 		ModuleCount: 0,  // Will be updated if version detection succeeds
 	}
@@ -159,4 +165,56 @@ func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec d
 	}
 
 	return result
+}
+
+// printProgress outputs real-time test progress to stdout.
+// Shows test number, status (✓/✗), data type, dimensions, encoder, and timing.
+func (r *Runner) printProgress(testNum, totalTests int, testCase testdata.TestCase, enc encoders.Encoder, dec decoders.Decoder, result TestResult) {
+	// Determine status symbol and color
+	status := "✓"
+	statusColor := "\033[32m" // Green
+	if !result.Success || !result.DataMatches {
+		status = "✗"
+		statusColor = "\033[31m" // Red
+	}
+	reset := "\033[0m"
+
+	// Content type label
+	contentLabel := contentTypeToString(testCase.ContentType)
+
+	// Print test result
+	fmt.Printf("[%d/%d] %s%s%s %s %d bytes @ %dpx (%s+%s) - %.1fms encode, %.1fms decode\n",
+		testNum, totalTests,
+		statusColor, status, reset,
+		contentLabel,
+		testCase.DataSize,
+		testCase.PixelSize,
+		enc.Name(),
+		dec.Name(),
+		float64(result.EncodeTime.Microseconds())/1000.0,
+		float64(result.DecodeTime.Microseconds())/1000.0,
+	)
+
+	// Print error details if failed
+	if !result.Success || !result.DataMatches {
+		if result.Error != nil {
+			fmt.Printf("  └─ %s\n", result.Error)
+		}
+	}
+}
+
+// contentTypeToString converts ContentType to display string.
+func contentTypeToString(ct testdata.ContentType) string {
+	switch ct {
+	case testdata.ContentNumeric:
+		return "numeric"
+	case testdata.ContentAlphanumeric:
+		return "alphanumeric"
+	case testdata.ContentBinary:
+		return "binary"
+	case testdata.ContentUTF8:
+		return "utf8"
+	default:
+		return "unknown"
+	}
 }
