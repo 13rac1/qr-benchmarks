@@ -12,7 +12,11 @@ func TestGetAvailableDecoders_DefaultConfig(t *testing.T) {
 	decoders := GetAvailableDecoders(cfg)
 
 	// Default config should include all decoders (gozxing, tuotoo, goqr)
+	// Plus goquirc if CGO is enabled
 	expectedCount := 3
+	if cgoEnabled() {
+		expectedCount = 4
+	}
 	if len(decoders) != expectedCount {
 		t.Errorf("GetAvailableDecoders() returned %d decoders, want %d", len(decoders), expectedCount)
 	}
@@ -27,6 +31,13 @@ func TestGetAvailableDecoders_DefaultConfig(t *testing.T) {
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("GetAvailableDecoders() missing decoder %q", name)
+		}
+	}
+
+	// Verify goquirc is included if CGO is enabled
+	if cgoEnabled() {
+		if !names["goquirc"] {
+			t.Error("GetAvailableDecoders() should include goquirc when CGO is enabled")
 		}
 	}
 }
@@ -70,11 +81,17 @@ func TestGetAvailableDecoders_SkipCGO(t *testing.T) {
 
 	decoders := GetAvailableDecoders(cfg)
 
-	// CGO decoders not implemented yet (commit 8)
-	// Should still have all 3 pure Go decoders
+	// With SkipCGO, should only have pure Go decoders (gozxing, tuotoo, goqr)
 	expectedCount := 3
 	if len(decoders) != expectedCount {
 		t.Errorf("GetAvailableDecoders() with SkipCGO returned %d decoders, want %d", len(decoders), expectedCount)
+	}
+
+	// Verify goquirc is excluded even if CGO is available
+	for _, dec := range decoders {
+		if dec.Name() == "goquirc" {
+			t.Error("GetAvailableDecoders() with SkipCGO should not include goquirc")
+		}
 	}
 }
 
@@ -109,7 +126,11 @@ func TestGetAllDecoders(t *testing.T) {
 	decoders := GetAllDecoders()
 
 	// Should return all 3 decoders regardless of config
+	// Plus goquirc if CGO is enabled
 	expectedCount := 3
+	if cgoEnabled() {
+		expectedCount = 4
+	}
 	if len(decoders) != expectedCount {
 		t.Errorf("GetAllDecoders() returned %d decoders, want %d", len(decoders), expectedCount)
 	}
@@ -124,6 +145,17 @@ func TestGetAllDecoders(t *testing.T) {
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("GetAllDecoders() missing decoder %q", name)
+		}
+	}
+
+	// Verify goquirc is included if CGO is enabled
+	if cgoEnabled() {
+		if !names["goquirc"] {
+			t.Error("GetAllDecoders() should include goquirc when CGO is enabled")
+		}
+	} else {
+		if names["goquirc"] {
+			t.Error("GetAllDecoders() should not include goquirc when CGO is disabled")
 		}
 	}
 }
@@ -171,5 +203,24 @@ func TestDecoderRegistry_NoNilDecoders(t *testing.T) {
 		if dec == nil {
 			t.Error("GetAllDecoders() returned nil decoder")
 		}
+	}
+}
+
+func TestCgoEnabled(t *testing.T) {
+	// This test verifies that cgoEnabled() returns the correct value
+	// based on build tags. The actual value depends on whether the
+	// code is built with CGO_ENABLED=1 or CGO_ENABLED=0.
+	result := cgoEnabled()
+
+	// Log the result for visibility
+	t.Logf("cgoEnabled() = %v", result)
+
+	// When built with CGO_ENABLED=1 and -tags cgo, result should be true
+	// When built with CGO_ENABLED=0 or without cgo tag, result should be false
+	// This test just verifies the function is callable and returns a boolean
+	if result {
+		t.Log("CGO is enabled - goquirc decoder will be available")
+	} else {
+		t.Log("CGO is disabled - goquirc decoder will not be available")
 	}
 }

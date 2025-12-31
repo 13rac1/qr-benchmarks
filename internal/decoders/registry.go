@@ -7,7 +7,7 @@ import "github.com/13rac1/qr-library-test/internal/config"
 // Always includes pure Go decoders (gozxing, tuotoo).
 // Conditionally includes:
 //   - goqr if !cfg.SkipArchived
-//   - goquirc if !cfg.SkipCGO (added in commit 8)
+//   - goquirc if !cfg.SkipCGO and CGO is enabled at build time
 func GetAvailableDecoders(cfg *config.Config) []Decoder {
 	decoders := []Decoder{
 		&GozxingDecoder{},
@@ -18,22 +18,28 @@ func GetAvailableDecoders(cfg *config.Config) []Decoder {
 		decoders = append(decoders, &GoqrDecoder{})
 	}
 
-	// CGO-based decoders will be added in commit 8:
-	// if !cfg.SkipCGO {
-	//     decoders = append(decoders, &GoquircDecoder{})
-	// }
+	// CGO decoder - only include if CGO enabled at build time and not skipped
+	if !cfg.SkipCGO && cgoEnabled() {
+		decoders = append(decoders, &GoquircDecoder{})
+	}
 
 	return decoders
 }
 
 // GetAllDecoders returns all decoders regardless of configuration.
 // Used for testing and full matrix runs.
-// Returns all implemented decoders: gozxing, tuotoo, goqr.
-// Note: goquirc will be added in commit 8.
+// Returns all implemented decoders: gozxing, tuotoo, goqr, and goquirc (if CGO enabled).
 func GetAllDecoders() []Decoder {
-	return []Decoder{
+	decoders := []Decoder{
 		&GozxingDecoder{},
 		&TuotooDecoder{},
 		&GoqrDecoder{},
 	}
+
+	// Include CGO decoders if available at build time
+	if cgoEnabled() {
+		decoders = append(decoders, &GoquircDecoder{})
+	}
+
+	return decoders
 }

@@ -14,6 +14,7 @@ require (
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/kdar/goquirc v0.0.0-20170404200522-467c1664402a // indirect
 	github.com/liyue201/goqr v0.0.0-20200803022322-df443203d4ea // indirect
 	github.com/maruel/rs v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
