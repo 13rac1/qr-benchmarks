@@ -43,17 +43,19 @@ func (d *GoquircDecoder) Decode(img image.Image) (data []byte, err error) {
 		return nil, fmt.Errorf("goquirc: image is nil")
 	}
 
-	// Use goquirc.Recognize to decode the QR code
-	qrCodes, decodeErr := goquirc.Recognize(img)
+	// Create a new decoder instance
+	decoder := goquirc.New()
+	defer decoder.Destroy()
+
+	// Decode the QR code - DecodeBytes returns the raw bytes directly
+	result, decodeErr := decoder.DecodeBytes(img)
 	if decodeErr != nil {
 		return nil, fmt.Errorf("goquirc: decode failed: %w", decodeErr)
 	}
 
-	if len(qrCodes) == 0 {
-		return nil, fmt.Errorf("goquirc: no QR code found in image")
+	if len(result) == 0 {
+		return nil, fmt.Errorf("goquirc: no data decoded from QR code")
 	}
 
-	// Return the payload from the first QR code found
-	// goquirc can detect multiple QR codes, but we only return the first one
-	return qrCodes[0].Payload, nil
+	return result, nil
 }
