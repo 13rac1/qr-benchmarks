@@ -55,11 +55,6 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("OutputDir = %q, want %q", cfg.OutputDir, "./results")
 	}
 
-	expectedFormats := []string{"markdown", "html"}
-	if !stringSliceEqual(cfg.OutputFormats, expectedFormats) {
-		t.Errorf("OutputFormats = %v, want %v", cfg.OutputFormats, expectedFormats)
-	}
-
 	if !cfg.Timestamp {
 		t.Error("Timestamp should be true by default")
 	}
@@ -185,55 +180,6 @@ func TestValidate_NegativeMaxWorkers(t *testing.T) {
 	}
 }
 
-func TestValidate_EmptyOutputFormats(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.OutputFormats = []string{}
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Error("Validate() error = nil, want error for empty OutputFormats")
-	}
-}
-
-func TestValidate_InvalidOutputFormat(t *testing.T) {
-	tests := []struct {
-		name   string
-		format string
-	}{
-		{"json", "json"},
-		{"xml", "xml"},
-		{"txt", "txt"},
-		{"empty", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := DefaultConfig()
-			cfg.OutputFormats = []string{tt.format}
-
-			err := cfg.Validate()
-			if err == nil {
-				t.Errorf("Validate() error = nil, want error for invalid format %q", tt.format)
-			}
-		})
-	}
-}
-
-func TestValidate_ValidOutputFormats(t *testing.T) {
-	validFormats := []string{"markdown", "html", "csv"}
-
-	for _, format := range validFormats {
-		t.Run(format, func(t *testing.T) {
-			cfg := DefaultConfig()
-			cfg.OutputFormats = []string{format}
-
-			err := cfg.Validate()
-			if err != nil {
-				t.Errorf("Validate() error = %v, want nil for valid format %q", err, format)
-			}
-		})
-	}
-}
 
 func TestRegisterFlags_Defaults(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
@@ -267,7 +213,6 @@ func TestRegisterFlags_CustomValues(t *testing.T) {
 		"-data-sizes", "100,200,300",
 		"-pixel-sizes", "256,512",
 		"-error-levels", "L,H",
-		"-format", "markdown",
 		"-parallel=false",
 		"-timeout", "5s",
 		"-max-workers", "2",
@@ -297,11 +242,6 @@ func TestRegisterFlags_CustomValues(t *testing.T) {
 	expectedErrorLevels := []string{"L", "H"}
 	if !stringSliceEqual(cfg.ErrorLevels, expectedErrorLevels) {
 		t.Errorf("ErrorLevels = %v, want %v", cfg.ErrorLevels, expectedErrorLevels)
-	}
-
-	expectedFormats := []string{"markdown"}
-	if !stringSliceEqual(cfg.OutputFormats, expectedFormats) {
-		t.Errorf("OutputFormats = %v, want %v", cfg.OutputFormats, expectedFormats)
 	}
 
 	if cfg.Parallel {
@@ -447,21 +387,6 @@ func TestIsValidErrorLevel(t *testing.T) {
 	}
 }
 
-func TestIsValidOutputFormat(t *testing.T) {
-	validFormats := []string{"markdown", "html", "csv"}
-	for _, format := range validFormats {
-		if !isValidOutputFormat(format) {
-			t.Errorf("isValidOutputFormat(%q) = false, want true", format)
-		}
-	}
-
-	invalidFormats := []string{"json", "xml", "txt", ""}
-	for _, format := range invalidFormats {
-		if isValidOutputFormat(format) {
-			t.Errorf("isValidOutputFormat(%q) = true, want false", format)
-		}
-	}
-}
 
 // Helper functions
 

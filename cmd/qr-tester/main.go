@@ -2,7 +2,7 @@
 //
 // This CLI tool tests encoder/decoder compatibility by running all combinations
 // of QR encoders and decoders against a matrix of test cases. Results are
-// generated as markdown reports showing which combinations work correctly.
+// generated as JSON reports showing which combinations work correctly.
 //
 // Usage:
 //
@@ -10,7 +10,7 @@
 //
 // Examples:
 //
-//	# Run with default settings (all decoders, markdown reports)
+//	# Run with default settings (all decoders)
 //	qr-tester
 //
 //	# Run tests in parallel with custom output directory
@@ -40,6 +40,15 @@ import (
 const version = "1.0.0"
 
 func main() {
+	// Check for version flag
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "version", "-version", "--version":
+			fmt.Printf("qr-tester v%s\n", version)
+			return
+		}
+	}
+
 	// Register flags
 	fs := flag.NewFlagSet("qr-tester", flag.ExitOnError)
 	cfg, parse := config.RegisterFlags(fs)
@@ -112,40 +121,14 @@ func run(cfg *config.Config) error {
 		return fmt.Errorf("test execution failed: %w", err)
 	}
 
-	// Generate reports in all configured formats
-	for _, format := range cfg.OutputFormats {
-		if err := generateReport(format, cfg, results); err != nil {
-			return err
-		}
+	// Generate JSON report
+	reporter := report.NewJSONReporter(cfg.OutputDir)
+	if err := reporter.Generate(results); err != nil {
+		return fmt.Errorf("json report failed: %w", err)
 	}
 
+	fmt.Printf("Results written to %s/results.json\n", cfg.OutputDir)
 	return nil
-}
-
-// generateReport creates a report in the specified format.
-func generateReport(format string, cfg *config.Config, results *matrix.CompatibilityMatrix) error {
-	switch format {
-	case "markdown":
-		reporter := report.NewMarkdownReporter(cfg.OutputDir)
-		if err := reporter.Generate(results); err != nil {
-			return fmt.Errorf("markdown report failed: %w", err)
-		}
-		fmt.Printf("Markdown reports generated in %s/\n", cfg.OutputDir)
-		return nil
-
-	case "html":
-		// HTML reporter not yet implemented
-		fmt.Println("HTML reporter not yet implemented")
-		return nil
-
-	case "csv":
-		// CSV reporter not yet implemented
-		fmt.Println("CSV reporter not yet implemented")
-		return nil
-
-	default:
-		return fmt.Errorf("unknown output format: %s", format)
-	}
 }
 
 // getAllEncoders returns all available QR encoders.

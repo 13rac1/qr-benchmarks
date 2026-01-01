@@ -50,11 +50,6 @@ type Config struct {
 	// Default: ./results
 	OutputDir string
 
-	// OutputFormats specifies report formats to generate.
-	// Valid values: markdown, html, csv
-	// Default: [markdown, html]
-	OutputFormats []string
-
 	// Timestamp adds timestamp to output filenames.
 	// Default: true
 	Timestamp bool
@@ -71,18 +66,17 @@ type Config struct {
 // Focuses on pixel size matrix testing (500-800 bytes, 320-560px).
 func DefaultConfig() *Config {
 	return &Config{
-		DataSizes:     []int{500, 550, 600, 650, 750, 800},
-		PixelSizes:    []int{320, 400, 440, 450, 460, 480, 512, 560},
-		ErrorLevels:   []string{"L", "M", "Q", "H"},
-		Parallel:      true,
-		Timeout:       10 * time.Second,
-		MaxWorkers:    runtime.NumCPU(),
-		SkipCGO:       false,
-		SkipArchived:  false,
-		OutputDir:     "./results",
-		OutputFormats: []string{"markdown", "html"},
-		Timestamp:     true,
-		TestMode:      "standard",
+		DataSizes:    []int{500, 550, 600, 650, 750, 800},
+		PixelSizes:   []int{320, 400, 440, 450, 460, 480, 512, 560},
+		ErrorLevels:  []string{"L", "M", "Q", "H"},
+		Parallel:     true,
+		Timeout:      10 * time.Second,
+		MaxWorkers:   runtime.NumCPU(),
+		SkipCGO:      false,
+		SkipArchived: false,
+		OutputDir:    "./results",
+		Timestamp:    true,
+		TestMode:     "standard",
 	}
 }
 
@@ -106,7 +100,6 @@ func RegisterFlags(fs *flag.FlagSet) (*Config, func() error) {
 	var dataSizesStr string
 	var pixelSizesStr string
 	var errorLevelsStr string
-	var outputFormatsStr string
 
 	fs.StringVar(&dataSizesStr, "data-sizes", "", "Comma-separated data sizes in bytes (default: 500,550,600,650,750,800)")
 	fs.StringVar(&pixelSizesStr, "pixel-sizes", "", "Comma-separated pixel dimensions (default: 320,400,440,450,460,480,512,560)")
@@ -117,7 +110,6 @@ func RegisterFlags(fs *flag.FlagSet) (*Config, func() error) {
 	fs.BoolVar(&cfg.SkipCGO, "skip-cgo", false, "Skip CGO-based decoders")
 	fs.BoolVar(&cfg.SkipArchived, "skip-archived", false, "Skip archived libraries")
 	fs.StringVar(&cfg.OutputDir, "output", "./results", "Output directory for results")
-	fs.StringVar(&outputFormatsStr, "format", "", "Comma-separated output formats: markdown,html,csv (default: markdown,html)")
 	fs.BoolVar(&cfg.Timestamp, "timestamp", true, "Add timestamp to output filenames")
 	fs.StringVar(&cfg.TestMode, "test-mode", "standard", "Test matrix mode: standard (96 tests) or comprehensive (576 tests)")
 
@@ -141,10 +133,6 @@ func RegisterFlags(fs *flag.FlagSet) (*Config, func() error) {
 
 		if errorLevelsStr != "" {
 			cfg.ErrorLevels = parseStringSlice(errorLevelsStr)
-		}
-
-		if outputFormatsStr != "" {
-			cfg.OutputFormats = parseStringSlice(outputFormatsStr)
 		}
 
 		return nil
@@ -181,17 +169,6 @@ func (c *Config) Validate() error {
 
 	if c.MaxWorkers <= 0 {
 		return fmt.Errorf("max-workers must be greater than 0, got %d", c.MaxWorkers)
-	}
-
-	if len(c.OutputFormats) == 0 {
-		return fmt.Errorf("output-formats cannot be empty")
-	}
-
-	// Validate output formats
-	for _, format := range c.OutputFormats {
-		if !isValidOutputFormat(format) {
-			return fmt.Errorf("invalid output format %q: must be markdown, html, or csv", format)
-		}
 	}
 
 	// Validate test mode
@@ -243,16 +220,6 @@ func parseStringSlice(s string) []string {
 func isValidErrorLevel(level string) bool {
 	switch level {
 	case "L", "M", "Q", "H":
-		return true
-	default:
-		return false
-	}
-}
-
-// isValidOutputFormat checks if the output format is valid.
-func isValidOutputFormat(format string) bool {
-	switch format {
-	case "markdown", "html", "csv":
 		return true
 	default:
 		return false
