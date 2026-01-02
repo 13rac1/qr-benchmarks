@@ -192,13 +192,10 @@ make serve-site      # Preview at http://localhost:1313
 
 ### Key Design Decisions
 
-**Capacity vs Errors**: Encoders implement `IsCapacityError()` to distinguish valid capacity rejections from bugs
-
-**UTF-8 Handling**: Test data generator ensures UTF-8 doesn't split multi-byte characters at boundaries
-
-**Panic Recovery**: Decoders that panic (tuotoo) are wrapped with recover() to convert panics to errors
-
-**CGO Support**: goquirc decoder requires C compiler; project builds without CGO using build tags
+- **Capacity vs Errors**: Encoders implement `IsCapacityError()` to distinguish valid capacity rejections from bugs
+- **UTF-8 Handling**: Test data generator ensures UTF-8 doesn't split multi-byte characters at boundaries
+- **Panic Recovery**: Decoders that panic (tuotoo) are wrapped with recover() to convert panics to errors
+- **CGO Support**: goquirc decoder requires C compiler; project builds without CGO using build tags
 
 ## Development
 
@@ -314,7 +311,7 @@ This silent data corruption makes the library unsuitable for production use. Oth
 
 **Q: Which encoder/decoder combination should I use?**
 
-A: Use the same library for both. The gozxing library handles both encoding and decoding, ensuring compatibility.
+A: Check the benchmarks!
 
 **Q: Why do some pixel sizes fail while others succeed?**
 
@@ -372,20 +369,3 @@ This tool wraps the following Go QR code libraries:
 - [ZXing Documentation](https://github.com/zxing/zxing)
 - [QR Code Module Structure](https://www.thonky.com/qr-code-tutorial/)
 
-## Contributing
-
-Contributions welcome! Areas of interest:
-
-1. **New encoders/decoders**: Add support for more Go libraries
-2. **HTML/CSV reporters**: Implement additional output formats
-3. **Multi-language support**: Test cross-language compatibility
-4. **Performance optimization**: Speed up test execution
-5. **Analysis tools**: Better failure pattern detection
-
-Please open an issue first to discuss significant changes.
-
-## Acknowledgments
-
-Built to solve a real-world problem: applications that encode QR codes with one library but decode with another (e.g., mobile apps) can fail unpredictably. This tool identifies those incompatibilities before they reach production.
-
-Special thanks to the maintainers of the libraries tested here for providing the Go community with QR code functionality.

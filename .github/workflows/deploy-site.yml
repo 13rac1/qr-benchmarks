@@ -27,7 +27,7 @@ jobs:
           go-version: '1.21'
 
       - name: Run benchmarks
-        run: make run
+        run: make run-full
 
       - name: Generate site data
         run: make generate-site
