@@ -19,12 +19,12 @@ func ExampleGeneratePixelSizeMatrix() {
 	}
 
 	// Output:
-	// Generated 48 test cases
+	// Generated 96 test cases
 	//
 	// First few test cases:
-	//   binary-500b-320px: 500 bytes at 320px
-	//   binary-500b-400px: 500 bytes at 400px
-	//   binary-500b-440px: 500 bytes at 440px
+	//   numeric-100b-264px: 100 bytes at 264px
+	//   alphanumeric-100b-264px: 100 bytes at 264px
+	//   binary-100b-264px: 100 bytes at 264px
 }
 
 // TestModuleCalculationExample demonstrates module size calculations
@@ -79,16 +79,16 @@ func TestDataGenerationProperties(t *testing.T) {
 			pixelSizes[tc.PixelSize] = true
 		}
 
-		if len(dataSizes) != 6 {
-			t.Errorf("expected 6 unique data sizes, got %d", len(dataSizes))
+		if len(dataSizes) != 4 {
+			t.Errorf("expected 4 unique data sizes, got %d", len(dataSizes))
 		}
 
-		if len(pixelSizes) != 8 {
-			t.Errorf("expected 8 unique pixel sizes, got %d", len(pixelSizes))
+		if len(pixelSizes) != 6 {
+			t.Errorf("expected 6 unique pixel sizes, got %d", len(pixelSizes))
 		}
 
-		if len(cases) != 48 {
-			t.Errorf("expected 48 test cases (6×8), got %d", len(cases))
+		if len(cases) != 96 {
+			t.Errorf("expected 96 test cases (4×6×4), got %d", len(cases))
 		}
 
 		t.Logf("Matrix: %d data sizes × %d pixel sizes = %d test cases",

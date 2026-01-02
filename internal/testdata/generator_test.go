@@ -8,26 +8,23 @@ import (
 func TestGeneratePixelSizeMatrix(t *testing.T) {
 	cases := GeneratePixelSizeMatrix()
 
-	// Verify total count: 6 data sizes × 8 pixel sizes = 48
-	expectedCount := 48
+	// Verify total count: 4 data sizes × 6 pixel sizes × 4 content types = 96
+	expectedCount := 96
 	if len(cases) != expectedCount {
 		t.Errorf("GeneratePixelSizeMatrix() returned %d cases, expected %d",
 			len(cases), expectedCount)
 	}
 
 	// Expected data and pixel sizes
-	expectedDataSizes := []int{500, 550, 600, 650, 750, 800}
-	expectedPixelSizes := []int{320, 400, 440, 450, 460, 480, 512, 560}
+	expectedDataSizes := []int{100, 300, 500, 750}
+	expectedPixelSizes := []int{264, 270, 360, 392, 445, 462}
+	expectedContentTypes := []ContentType{ContentNumeric, ContentAlphanumeric, ContentBinary, ContentUTF8}
 
 	// Verify all combinations are present
 	combinations := make(map[string]bool)
-	for _, tc := range cases {
-		// Verify content type is binary
-		if tc.ContentType != ContentBinary {
-			t.Errorf("test case %q has content type %d, expected ContentBinary (%d)",
-				tc.Name, tc.ContentType, ContentBinary)
-		}
+	contentTypeCounts := make(map[ContentType]int)
 
+	for _, tc := range cases {
 		// Verify data size matches actual data length
 		if tc.DataSize != len(tc.Data) {
 			t.Errorf("test case %q has DataSize %d but len(Data) = %d",
@@ -35,18 +32,30 @@ func TestGeneratePixelSizeMatrix(t *testing.T) {
 		}
 
 		// Track this combination
-		key := formatInt(tc.DataSize) + ":" + formatInt(tc.PixelSize)
+		key := formatInt(tc.DataSize) + ":" + formatInt(tc.PixelSize) + ":" + formatInt(int(tc.ContentType))
 		combinations[key] = true
+		contentTypeCounts[tc.ContentType]++
 	}
 
 	// Verify all expected combinations are present
 	for _, dataSize := range expectedDataSizes {
 		for _, pixelSize := range expectedPixelSizes {
-			key := formatInt(dataSize) + ":" + formatInt(pixelSize)
-			if !combinations[key] {
-				t.Errorf("missing combination: data size %d, pixel size %d",
-					dataSize, pixelSize)
+			for _, contentType := range expectedContentTypes {
+				key := formatInt(dataSize) + ":" + formatInt(pixelSize) + ":" + formatInt(int(contentType))
+				if !combinations[key] {
+					t.Errorf("missing combination: data size %d, pixel size %d, content type %d",
+						dataSize, pixelSize, contentType)
+				}
 			}
+		}
+	}
+
+	// Verify content type distribution
+	expectedPerType := 24 // 96 tests / 4 content types
+	for _, contentType := range expectedContentTypes {
+		if contentTypeCounts[contentType] != expectedPerType {
+			t.Errorf("content type %d has %d tests, expected %d",
+				contentType, contentTypeCounts[contentType], expectedPerType)
 		}
 	}
 }

@@ -13,17 +13,21 @@ func TestSkip2Encoder_Encode_Success(t *testing.T) {
 		PixelSize:            256,
 	}
 
-	img, err := enc.Encode(data, opts)
+	result, err := enc.Encode(data, opts)
 	if err != nil {
 		t.Fatalf("Encode() failed: %v", err)
 	}
 
-	if img == nil {
+	if result.Image == nil {
 		t.Fatal("Encode() returned nil image")
 	}
 
+	if result.Version < 1 || result.Version > 40 {
+		t.Errorf("Version = %d, want 1-40", result.Version)
+	}
+
 	// Verify image bounds match requested pixel size
-	bounds := img.Bounds()
+	bounds := result.Image.Bounds()
 	width := bounds.Dx()
 	height := bounds.Dy()
 
@@ -70,14 +74,17 @@ func TestSkip2Encoder_Encode_ErrorCorrectionLevels(t *testing.T) {
 				PixelSize:            256,
 			}
 
-			img, err := enc.Encode(data, opts)
+			result, err := enc.Encode(data, opts)
 
 			if tt.valid {
 				if err != nil {
 					t.Errorf("Encode() with level %q failed: %v", tt.level, err)
 				}
-				if img == nil {
+				if result.Image == nil {
 					t.Error("Encode() returned nil image")
+				}
+				if result.Version < 1 || result.Version > 40 {
+					t.Errorf("Version = %d, want 1-40", result.Version)
 				}
 			} else {
 				if err == nil {
@@ -113,17 +120,21 @@ func TestSkip2Encoder_Encode_VariousDataSizes(t *testing.T) {
 				PixelSize:            512,
 			}
 
-			img, err := enc.Encode(data, opts)
+			result, err := enc.Encode(data, opts)
 			if err != nil {
 				t.Fatalf("Encode() with %d bytes failed: %v", tt.dataSize, err)
 			}
 
-			if img == nil {
+			if result.Image == nil {
 				t.Fatal("Encode() returned nil image")
 			}
 
+			if result.Version < 1 || result.Version > 40 {
+				t.Errorf("Version = %d, want 1-40", result.Version)
+			}
+
 			// Verify image is valid
-			bounds := img.Bounds()
+			bounds := result.Image.Bounds()
 			if bounds.Empty() {
 				t.Error("Encode() returned image with empty bounds")
 			}
@@ -144,12 +155,16 @@ func TestSkip2Encoder_Encode_DifferentPixelSizes(t *testing.T) {
 				PixelSize:            pixelSize,
 			}
 
-			img, err := enc.Encode(data, opts)
+			result, err := enc.Encode(data, opts)
 			if err != nil {
 				t.Fatalf("Encode() at %dpx failed: %v", pixelSize, err)
 			}
 
-			bounds := img.Bounds()
+			if result.Version < 1 || result.Version > 40 {
+				t.Errorf("Version = %d, want 1-40", result.Version)
+			}
+
+			bounds := result.Image.Bounds()
 			width := bounds.Dx()
 			height := bounds.Dy()
 

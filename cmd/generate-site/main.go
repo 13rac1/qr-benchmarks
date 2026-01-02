@@ -25,7 +25,7 @@ type RawTestResult struct {
 	QRVersion          int     `json:"qrVersion,omitempty"`
 	ModuleCount        int     `json:"moduleCount,omitempty"`
 	ModulePixelSize    float64 `json:"modulePixelSize,omitempty"`
-	IsFractionalModule bool    `json:"isFractionalModule,omitempty"`
+	IsFractionalModule bool    `json:"isFractionalModule"`
 }
 
 type RawResults struct {

@@ -122,7 +122,7 @@ func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec d
 	}
 
 	encodeStart := time.Now()
-	img, err := enc.Encode(testCase.Data, encodeOpts)
+	encodeResult, err := enc.Encode(testCase.Data, encodeOpts)
 	result.EncodeTime = time.Since(encodeStart)
 
 	if err != nil {
@@ -131,10 +131,16 @@ func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec d
 		return result
 	}
 
-	// Attempt to detect QR version
-	// This will fail with "not yet implemented" error, which is expected
-	version, err := testdata.DetectQRVersion(img)
-	if err == nil && version > 0 {
+	img := encodeResult.Image
+
+	// Use version from encoder (or fallback to image detection)
+	version := encodeResult.Version
+	if version <= 0 {
+		// Fallback to image-based detection
+		version, _ = testdata.DetectQRVersion(img)
+	}
+
+	if version > 0 {
 		result.QRVersion = version
 		result.ModuleCount = testdata.CalculateModuleCount(version)
 
@@ -143,8 +149,6 @@ func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec d
 		result.ModulePixelSize = modulePixelSize
 		result.IsFractionalModule = testdata.IsFractionalModuleSize(modulePixelSize)
 	}
-	// If version detection fails (expected for now), leave QRVersion as -1
-	// and ModuleCount/ModulePixelSize as 0
 
 	// Decode QR code with timing
 	decodeStart := time.Now()

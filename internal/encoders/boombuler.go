@@ -3,7 +3,6 @@ package encoders
 
 import (
 	"fmt"
-	"image"
 	"strings"
 
 	"github.com/boombuler/barcode"
@@ -21,9 +20,9 @@ func (e *BoombulerEncoder) Name() string {
 
 // Encode generates a QR code image from the input data.
 // The boombuler/barcode library generates a Barcode interface which implements image.Image.
-func (e *BoombulerEncoder) Encode(data []byte, opts EncodeOptions) (image.Image, error) {
+func (e *BoombulerEncoder) Encode(data []byte, opts EncodeOptions) (EncodeResult, error) {
 	if len(data) == 0 {
-		return nil, fmt.Errorf("boombuler: cannot encode empty data")
+		return EncodeResult{}, fmt.Errorf("boombuler: cannot encode empty data")
 	}
 
 	// Map error correction level to qr package constants
@@ -38,22 +37,32 @@ func (e *BoombulerEncoder) Encode(data []byte, opts EncodeOptions) (image.Image,
 	case ErrorCorrectionH:
 		level = qr.H
 	default:
-		return nil, fmt.Errorf("boombuler: invalid error correction level %q", opts.ErrorCorrectionLevel)
+		return EncodeResult{}, fmt.Errorf("boombuler: invalid error correction level %q", opts.ErrorCorrectionLevel)
 	}
 
 	// Encode using Unicode mode for binary data
 	qrCode, err := qr.Encode(string(data), level, qr.Unicode)
 	if err != nil {
-		return nil, fmt.Errorf("boombuler: encode failed: %w", err)
+		return EncodeResult{}, fmt.Errorf("boombuler: encode failed: %w", err)
 	}
+
+	// Calculate version from module dimension (before scaling)
+	// QR code dimension formula: dimension = ((version - 1) * 4) + 21
+	// Inverse: version = ((dimension - 21) / 4) + 1
+	bounds := qrCode.Bounds()
+	dimension := bounds.Dx()
+	version := ((dimension - 21) / 4) + 1
 
 	// Scale barcode to desired pixel size
 	scaled, err := barcode.Scale(qrCode, opts.PixelSize, opts.PixelSize)
 	if err != nil {
-		return nil, fmt.Errorf("boombuler: scale failed: %w", err)
+		return EncodeResult{}, fmt.Errorf("boombuler: scale failed: %w", err)
 	}
 
-	return scaled, nil
+	return EncodeResult{
+		Image:   scaled,
+		Version: version,
+	}, nil
 }
 
 // IsCapacityError returns true if the error indicates data exceeds QR capacity.

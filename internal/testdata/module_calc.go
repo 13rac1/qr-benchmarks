@@ -3,6 +3,7 @@ package testdata
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"math"
 )
@@ -14,17 +15,49 @@ const QuietZoneModules = 4
 // DetectQRVersion detects the QR code version from an encoded image.
 // QR versions range from 1 to 40, determining the module count.
 //
-// This is currently a placeholder implementation. Proper version detection
-// requires analyzing the encoded image to identify version information patterns.
-// For initial testing, QR version can be inferred from data size or calculated
-// by the runner after encoding.
+// This implementation attempts to determine the QR version by analyzing the
+// image dimensions using two common formulas used by different QR libraries:
+//   - Formula 1 (boombuler/skip2): dimension = ((version - 1) * 4) + 21
+//   - Formula 2 (yeqown/gozxing): dimension = version*4 + 17
 //
-// Returns -1 and an error indicating detection is not yet implemented.
+// Returns the detected version (1-40) or -1 with an error if detection fails.
 func DetectQRVersion(img image.Image) (int, error) {
 	if img == nil {
 		return -1, errors.New("image is nil")
 	}
-	return -1, errors.New("QR version detection not yet implemented")
+
+	// Get image dimension (should be square for QR codes)
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+
+	if width != height {
+		return -1, fmt.Errorf("image is not square: %dx%d", width, height)
+	}
+
+	// Try both formulas (different libraries use different quiet zone handling)
+
+	// Formula 1: Used by skip2/boombuler
+	// dimension = ((version - 1) * 4) + 21
+	// version = ((dimension - 21) / 4) + 1
+	if (width-21)%4 == 0 {
+		version1 := ((width - 21) / 4) + 1
+		if version1 >= 1 && version1 <= 40 {
+			return version1, nil
+		}
+	}
+
+	// Formula 2: Used by yeqown/gozxing
+	// dimension = version*4 + 17
+	// version = (dimension - 17) / 4
+	if (width-17)%4 == 0 {
+		version2 := (width - 17) / 4
+		if version2 >= 1 && version2 <= 40 {
+			return version2, nil
+		}
+	}
+
+	return -1, fmt.Errorf("could not determine QR version from dimension %d", width)
 }
 
 // CalculateModuleCount returns the number of modules per side for a QR version.

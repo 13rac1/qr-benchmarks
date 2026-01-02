@@ -27,9 +27,9 @@ func (e *Skip2Encoder) Name() string {
 
 // Encode generates a QR code image from the input data.
 // The skip2/go-qrcode library generates PNG bytes which are decoded back to image.Image.
-func (e *Skip2Encoder) Encode(data []byte, opts EncodeOptions) (image.Image, error) {
+func (e *Skip2Encoder) Encode(data []byte, opts EncodeOptions) (EncodeResult, error) {
 	if len(data) == 0 {
-		return nil, fmt.Errorf("skip2: cannot encode empty data")
+		return EncodeResult{}, fmt.Errorf("skip2: cannot encode empty data")
 	}
 
 	// Map error correction level to qrcode package constants
@@ -44,22 +44,31 @@ func (e *Skip2Encoder) Encode(data []byte, opts EncodeOptions) (image.Image, err
 	case ErrorCorrectionH:
 		level = qrcode.Highest
 	default:
-		return nil, fmt.Errorf("skip2: invalid error correction level %q", opts.ErrorCorrectionLevel)
+		return EncodeResult{}, fmt.Errorf("skip2: invalid error correction level %q", opts.ErrorCorrectionLevel)
 	}
 
-	// Encode to PNG bytes
-	pngBytes, err := qrcode.Encode(string(data), level, opts.PixelSize)
+	// Create QRCode struct to access version
+	qr, err := qrcode.New(string(data), level)
 	if err != nil {
-		return nil, fmt.Errorf("skip2: encode failed: %w", err)
+		return EncodeResult{}, fmt.Errorf("skip2: encode failed: %w", err)
+	}
+
+	// Generate PNG at requested size
+	pngBytes, err := qr.PNG(opts.PixelSize)
+	if err != nil {
+		return EncodeResult{}, fmt.Errorf("skip2: PNG generation failed: %w", err)
 	}
 
 	// Decode PNG bytes to image.Image
 	img, _, err := image.Decode(bytes.NewReader(pngBytes))
 	if err != nil {
-		return nil, fmt.Errorf("skip2: PNG decode failed: %w", err)
+		return EncodeResult{}, fmt.Errorf("skip2: PNG decode failed: %w", err)
 	}
 
-	return img, nil
+	return EncodeResult{
+		Image:   img,
+		Version: qr.VersionNumber,
+	}, nil
 }
 
 // IsCapacityError returns true if the error indicates data exceeds QR capacity.

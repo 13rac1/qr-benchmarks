@@ -52,56 +52,89 @@ type TestCase struct {
 }
 
 // GeneratePixelSizeMatrix generates the primary test matrix for pixel size testing.
-// This is the core test set for reproducing the skip2+gozxing fractional module issue
-// and demonstrating encoding mode correlation with tuotoo decoder.
+// This is the core test set for testing fractional module sizing issues across
+// all content types and a balanced range of QR versions.
 //
 // Matrix dimensions:
-//   - Data sizes: [500, 550, 600, 650, 750, 800] bytes (6 sizes)
-//   - Pixel sizes: [320, 400, 440, 450, 460, 480, 512, 560] pixels (8 sizes)
-//   - Content types: Alphanumeric + UTF-8 (2 types)
-//   - Total: 6 × 8 × 2 = 96 test cases
+//   - Data sizes: [100, 300, 500, 750] bytes (4 sizes → QR versions 3, 7, 10, 14)
+//   - Pixel sizes: [256, 320, 400, 440, 480, 512] pixels (6 sizes)
+//   - Content types: All 4 types (numeric, alphanumeric, binary, UTF-8)
+//   - Total: 4 × 6 × 4 = 96 test cases
 //
-// Tests BOTH alphanumeric and UTF-8 data to demonstrate encoding mode correlation:
-//   - Alphanumeric data → QR alphanumeric mode → tuotoo padding issue
-//   - UTF-8 data → QR byte mode → tuotoo works correctly
+// Data sizes are carefully chosen to trigger specific QR versions:
+//   - 100 bytes → version 3 (29 modules)
+//   - 300 bytes → version 7 (45 modules)
+//   - 500 bytes → version 10 (57 modules)
+//   - 750 bytes → version 14 (73 modules)
 //
-// The data sizes are chosen to trigger QR versions 10-15, which are known to produce
-// problematic fractional module sizes at certain pixel dimensions.
+// Pixel sizes are chosen for a balanced mix of fractional and integer modules:
+//   - 264: Integer for v3 (264/33 = 8.0)
+//   - 330: Integer for v3 (330/33 = 10.0)
+//   - 392: Integer for v7 (392/49 = 8.0)
+//   - 427: Integer for v10 (427/61 = 7.0)
+//   - 440: Fractional for most versions
+//   - 462: Integer for v3 (462/33 = 14.0) and v14 (462/77 = 6.0)
 //
-// Pixel sizes include:
-//   - 320, 400: Common mobile resolutions (low end)
-//   - 440, 450: Known problematic sizes (produce fractional modules)
-//   - 460, 480: Transition zone
-//   - 512, 560: Higher resolutions (power-of-2 and above)
+// Expected fractional/integer split:
+//   - 5 of 6 pixel sizes are integer multiples of common module counts
+//   - Different content types produce different versions, affecting distribution
+//   - Target: ~30-50% integer module sizes
 //
 // The data is deterministic (uses repeating patterns) for reproducible testing.
 func GeneratePixelSizeMatrix() []TestCase {
-	dataSizes := []int{500, 550, 600, 650, 750, 800}
-	pixelSizes := []int{320, 400, 440, 450, 460, 480, 512, 560}
+	// Data sizes chosen to trigger specific QR versions
+	dataSizes := []int{100, 300, 500, 750}
 
-	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes)*2)
+	// Pixel sizes chosen for balanced mix of fractional and integer modules
+	// Covers multiple QR versions produced by different encoders:
+	// 264: v3 (33×8) - skip2/yeqown numeric
+	// 270: v6 (45×6) - boombuler all types
+	// 360: v6 (45×8) - boombuler all types
+	// 392: v7 (49×8) - skip2 alphanumeric
+	// 445: v17 (89×5) - boombuler large data
+	// 462: v3 (33×14), v14 (77×6) - skip2 numeric, large versions
+	// Note: Different encoders produce different QR versions for the same data
+	pixelSizes := []int{264, 270, 360, 392, 445, 462}
+
+	// All four content types for comprehensive coverage
+	contentTypes := []ContentType{
+		ContentNumeric,
+		ContentAlphanumeric,
+		ContentBinary,
+		ContentUTF8,
+	}
+
+	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes)*len(contentTypes))
 
 	for _, dataSize := range dataSizes {
 		for _, pixelSize := range pixelSizes {
-			// Test 1: Alphanumeric data (triggers alphanumeric mode)
-			alphaData := generateAlphanumeric(dataSize)
-			cases = append(cases, TestCase{
-				Name:        formatTestName("alphanumeric", dataSize, pixelSize),
-				Data:        alphaData,
-				DataSize:    dataSize,
-				PixelSize:   pixelSize,
-				ContentType: ContentAlphanumeric,
-			})
+			for _, contentType := range contentTypes {
+				var data []byte
+				var name string
 
-			// Test 2: UTF-8 data (forces byte mode)
-			utf8Data := generateUTF8(dataSize)
-			cases = append(cases, TestCase{
-				Name:        formatTestName("utf8", dataSize, pixelSize),
-				Data:        utf8Data,
-				DataSize:    dataSize,
-				PixelSize:   pixelSize,
-				ContentType: ContentUTF8,
-			})
+				switch contentType {
+				case ContentNumeric:
+					data = generateNumeric(dataSize)
+					name = formatTestName("numeric", dataSize, pixelSize)
+				case ContentAlphanumeric:
+					data = generateAlphanumeric(dataSize)
+					name = formatTestName("alphanumeric", dataSize, pixelSize)
+				case ContentBinary:
+					data = generateBinary(dataSize)
+					name = formatTestName("binary", dataSize, pixelSize)
+				case ContentUTF8:
+					data = generateUTF8(dataSize)
+					name = formatTestName("utf8", dataSize, pixelSize)
+				}
+
+				cases = append(cases, TestCase{
+					Name:        name,
+					Data:        data,
+					DataSize:    dataSize,
+					PixelSize:   pixelSize,
+					ContentType: contentType,
+				})
+			}
 		}
 	}
 
@@ -161,19 +194,20 @@ func GenerateComprehensiveMatrix() []TestCase {
 	}
 
 	// Comprehensive pixel size progression (12 sizes from minimal to high-res)
+	// Includes mix of integer-producing and fractional sizes for comprehensive testing
 	pixelSizes := []int{
 		128,  // Minimal - will fail for larger QR versions
 		200,  // Minimal - edge case testing
-		256,  // Small - mobile low-end
-		320,  // Small - common mobile
-		400,  // Medium - tablet/mobile
-		450,  // Medium - fractional module boundary
-		480,  // Medium
-		512,  // Medium - power of 2
-		600,  // Standard - common size
-		720,  // Standard - 720p derivative
-		800,  // Large - high resolution
-		1024, // Large - power of 2, always works
+		264,  // Small - integer for v3 (skip2/yeqown numeric)
+		270,  // Small - integer for v6 (boombuler all types)
+		360,  // Medium - integer for v6 (boombuler all types)
+		392,  // Medium - integer for v7 (skip2 alphanumeric)
+		445,  // Medium - integer for v17 (boombuler large)
+		480,  // Medium - fractional for most versions
+		512,  // Medium - power of 2, fractional for most
+		600,  // Standard - common size, fractional
+		720,  // Standard - 720p derivative, fractional
+		1024, // Large - power of 2, safe for all versions
 	}
 
 	// Pre-allocate for all combinations: 12 sizes × 12 pixels × 4 content types

@@ -33,9 +33,9 @@ func (bc *bufferCloser) Close() error {
 
 // Encode generates a QR code image from the input data.
 // The yeqown/go-qrcode library uses a writer pattern to generate images.
-func (e *YeqownEncoder) Encode(data []byte, opts EncodeOptions) (image.Image, error) {
+func (e *YeqownEncoder) Encode(data []byte, opts EncodeOptions) (EncodeResult, error) {
 	if len(data) == 0 {
-		return nil, fmt.Errorf("yeqown: cannot encode empty data")
+		return EncodeResult{}, fmt.Errorf("yeqown: cannot encode empty data")
 	}
 
 	// Map error correction level to qrc package constants
@@ -51,13 +51,13 @@ func (e *YeqownEncoder) Encode(data []byte, opts EncodeOptions) (image.Image, er
 	case ErrorCorrectionH:
 		levelOption = qrc.WithErrorCorrectionLevel(qrc.ErrorCorrectionHighest)
 	default:
-		return nil, fmt.Errorf("yeqown: invalid error correction level %q", opts.ErrorCorrectionLevel)
+		return EncodeResult{}, fmt.Errorf("yeqown: invalid error correction level %q", opts.ErrorCorrectionLevel)
 	}
 
 	// Create QR code with options
 	qrCode, err := qrc.NewWith(string(data), levelOption)
 	if err != nil {
-		return nil, fmt.Errorf("yeqown: QR code creation failed: %w", err)
+		return EncodeResult{}, fmt.Errorf("yeqown: QR code creation failed: %w", err)
 	}
 
 	// Write to buffer using standard writer
@@ -68,16 +68,26 @@ func (e *YeqownEncoder) Encode(data []byte, opts EncodeOptions) (image.Image, er
 	)
 
 	if err := qrCode.Save(writer); err != nil {
-		return nil, fmt.Errorf("yeqown: save failed: %w", err)
+		return EncodeResult{}, fmt.Errorf("yeqown: save failed: %w", err)
 	}
 
 	// Decode PNG bytes to image.Image
 	img, _, err := image.Decode(buf.Buffer)
 	if err != nil {
-		return nil, fmt.Errorf("yeqown: PNG decode failed: %w", err)
+		return EncodeResult{}, fmt.Errorf("yeqown: PNG decode failed: %w", err)
 	}
 
-	return img, nil
+	// Calculate version from module dimension (not scaled pixel dimension)
+	// qrCode.Dimension() returns the module count (e.g., 29 for version 3)
+	// Yeqown formula: dimension = version*4 + 17
+	// Inverse: version = (dimension - 17) / 4
+	dimension := qrCode.Dimension()
+	version := (dimension - 17) / 4
+
+	return EncodeResult{
+		Image:   img,
+		Version: version,
+	}, nil
 }
 
 // IsCapacityError returns true if the error indicates data exceeds QR capacity.

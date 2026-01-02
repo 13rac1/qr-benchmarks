@@ -28,6 +28,21 @@ type EncodeOptions struct {
 	PixelSize int
 }
 
+// EncodeResult contains the encoded QR code image and metadata.
+type EncodeResult struct {
+	// Image is the generated QR code.
+	Image image.Image
+
+	// Version is the QR code version (1-40).
+	// A value of -1 indicates the version could not be determined.
+	// QR version determines the size of the QR code matrix:
+	// - Version 1: 21x21 modules
+	// - Version 2: 25x25 modules
+	// - Each version adds 4 modules per side
+	// - Formula: modules = 17 + (version * 4)
+	Version int
+}
+
 // Encoder generates QR codes from input data.
 // Implementations wrap different QR encoding libraries to provide a uniform interface.
 type Encoder interface {
@@ -38,7 +53,9 @@ type Encoder interface {
 	// Encode generates a QR code image from the input data.
 	// Returns an error if encoding fails (e.g., data too large, invalid options).
 	// The returned image dimensions should match opts.PixelSize.
-	Encode(data []byte, opts EncodeOptions) (image.Image, error)
+	// The Version field in EncodeResult should contain the QR version (1-40),
+	// or -1 if the version could not be determined.
+	Encode(data []byte, opts EncodeOptions) (EncodeResult, error)
 
 	// IsCapacityError returns true if the error indicates the data exceeds
 	// QR code capacity at the requested size. These errors are valid rejections,
