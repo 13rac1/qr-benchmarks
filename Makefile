@@ -90,10 +90,10 @@ run: build
 	@echo "Running QR compatibility tests..."
 	./bin/qr-tester
 
-# Run with custom config
+# Run comprehensive test matrix (576 tests per encoder/decoder pair)
 run-full: build
-	@echo "Running full test matrix..."
-	./bin/qr-tester -parallel=true -output=./results
+	@echo "Running comprehensive test matrix..."
+	./bin/qr-tester -test-mode=comprehensive
 
 # Install dependencies
 deps:
@@ -135,8 +135,8 @@ help:
 	@echo "  make lint          - Run linter (requires golangci-lint)"
 	@echo "  make fmt           - Format code and run go vet"
 	@echo "  make clean         - Remove build artifacts"
-	@echo "  make run           - Build and run with default settings"
-	@echo "  make run-full      - Build and run full test matrix"
+	@echo "  make run           - Build and run standard tests (96/pair)"
+	@echo "  make run-full      - Build and run comprehensive tests (576/pair)"
 	@echo "  make deps          - Download dependencies"
 	@echo "  make tidy          - Tidy go.mod"
 	@echo "  make generate-site - Generate Hugo data from results"
