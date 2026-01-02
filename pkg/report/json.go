@@ -78,7 +78,7 @@ func (r *JSONReporter) generateEncoderFiles(m *matrix.CompatibilityMatrix) error
 			Timestamp: timestamp,
 			Results:   results,
 		}
-		filename := filepath.Join(encoderDir, encoder+".json")
+		filename := filepath.Join(encoderDir, sanitizeFilename(encoder)+".json")
 		if err := r.writeJSON(filename, data); err != nil {
 			return err
 		}
@@ -108,7 +108,7 @@ func (r *JSONReporter) generateDecoderFiles(m *matrix.CompatibilityMatrix) error
 			Timestamp: timestamp,
 			Results:   results,
 		}
-		filename := filepath.Join(decoderDir, decoder+".json")
+		filename := filepath.Join(decoderDir, sanitizeFilename(decoder)+".json")
 		if err := r.writeJSON(filename, data); err != nil {
 			return err
 		}
@@ -173,4 +173,18 @@ func (r *JSONReporter) writeJSON(path string, data interface{}) error {
 // toMilliseconds converts a duration to milliseconds as a float.
 func toMilliseconds(d time.Duration) float64 {
 	return float64(d.Microseconds()) / 1000.0
+}
+
+// sanitizeFilename replaces characters that are invalid in filenames.
+func sanitizeFilename(name string) string {
+	// Replace "/" with "_" to avoid path issues
+	result := ""
+	for _, c := range name {
+		if c == '/' {
+			result += "_"
+		} else {
+			result += string(c)
+		}
+	}
+	return result
 }

@@ -1,0 +1,60 @@
+{{ define "main" }}
+<h1>Encoder Rankings</h1>
+
+<p>Encoders are ranked by overall success rate across all decoder combinations and test conditions.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Rank</th>
+      <th>Encoder</th>
+      <th>Success Rate</th>
+      <th>Avg Encode Time</th>
+      <th>Successes</th>
+      <th>Total Tests</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $i, $e := .Site.Data.encoders }}
+    <tr>
+      <td>{{ add $i 1 }}</td>
+      <td><strong>{{ .name }}</strong></td>
+      <td class="{{ if ge .successRate 95.0 }}rate-high{{ else if ge .successRate 80.0 }}rate-medium{{ else }}rate-low{{ end }}">
+        {{ printf "%.1f%%" .successRate }}
+      </td>
+      <td>{{ printf "%.2fms" .avgEncodeMs }}</td>
+      <td>{{ .successCount }}</td>
+      <td>{{ .totalTests }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+
+<h2>Per-Decoder Breakdown</h2>
+
+{{ range $e := .Site.Data.encoders }}
+<h3>{{ .name }}</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Decoder</th>
+      <th>Success Rate</th>
+      <th>Successes</th>
+      <th>Tests</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $dec, $stats := .byDecoder }}
+    <tr>
+      <td>{{ $dec }}</td>
+      <td class="{{ if ge $stats.successRate 95.0 }}rate-high{{ else if ge $stats.successRate 80.0 }}rate-medium{{ else }}rate-low{{ end }}">
+        {{ printf "%.1f%%" $stats.successRate }}
+      </td>
+      <td>{{ $stats.successes }}</td>
+      <td>{{ $stats.tests }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+{{ end }}
+{{ end }}

@@ -1,4 +1,4 @@
-.PHONY: all build build-cgo test test-cgo test-coverage lint fmt clean run run-full deps tidy help
+.PHONY: all build build-nocgo test test-nocgo test-coverage lint fmt clean run run-full deps tidy help generate-site serve-site build-site
 
 # Variables for CGO dependency management
 GOQUIRC_VERSION := $(shell go list -m -f '{{.Version}}' github.com/kdar/goquirc)
@@ -7,12 +7,6 @@ GOQUIRC_SRC := $(GOMODCACHE)/github.com/kdar/goquirc@$(GOQUIRC_VERSION)
 
 # Default target
 all: fmt lint test build
-
-# Build without CGO (default - 3 decoders)
-build:
-	@echo "Building without CGO..."
-	CGO_ENABLED=0 go build -o bin/qr-tester ./cmd/qr-tester
-	@echo "Binary: bin/qr-tester"
 
 # Vendor Go dependencies
 vendor: go.mod go.sum
@@ -43,34 +37,40 @@ libquirc.a: vendor/github.com/kdar/goquirc/libquirc.a
 	@echo "Copying libquirc.a to project root..."
 	cp vendor/github.com/kdar/goquirc/libquirc.a .
 
-# Build with CGO (includes goquirc decoder - 4 decoders)
-build-cgo: libquirc.a
+# Build with CGO (default - includes goquirc decoder - 4 decoders)
+build: libquirc.a
 	@echo "Building with CGO..."
-	CGO_ENABLED=1 go build -mod=vendor -o bin/qr-tester-cgo ./cmd/qr-tester
-	@echo "Binary: bin/qr-tester-cgo"
+	CGO_ENABLED=1 go build -mod=vendor -o bin/qr-tester ./cmd/qr-tester
+	@echo "Binary: bin/qr-tester"
 
-# Run tests (without CGO)
-test:
-	@echo "Running tests (CGO disabled)..."
-	CGO_ENABLED=0 go test -v ./...
+# Build without CGO (3 decoders)
+build-nocgo:
+	@echo "Building without CGO..."
+	CGO_ENABLED=0 go build -o bin/qr-tester-nocgo ./cmd/qr-tester
+	@echo "Binary: bin/qr-tester-nocgo"
 
 # Run tests (with CGO)
-test-cgo: libquirc.a
+test: libquirc.a
 	@echo "Running tests (CGO enabled)..."
 	CGO_ENABLED=1 go test -mod=vendor -v ./...
 
+# Run tests (without CGO)
+test-nocgo:
+	@echo "Running tests (CGO disabled)..."
+	CGO_ENABLED=0 go test -v ./...
+
 # Run tests with coverage
-test-coverage:
+test-coverage: libquirc.a
 	@echo "Running tests with coverage..."
-	CGO_ENABLED=0 go test -v -coverprofile=coverage.out ./...
+	CGO_ENABLED=1 go test -mod=vendor -v -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
 # Lint code
-lint:
+lint: libquirc.a
 	@echo "Linting code..."
 	@command -v golangci-lint >/dev/null 2>&1 || { echo "golangci-lint not installed, skipping..."; exit 0; }
-	@CGO_ENABLED=0 golangci-lint run ./... || { echo "Linting completed with warnings"; exit 0; }
+	@CGO_ENABLED=1 golangci-lint run ./... || { echo "Linting completed with warnings"; exit 0; }
 
 # Format code
 fmt:
@@ -106,14 +106,31 @@ tidy:
 	@echo "Tidying dependencies..."
 	go mod tidy
 
+# Generate Hugo site data from benchmark results
+generate-site:
+	@echo "Generating Hugo site data..."
+	@test -d results || (echo "No results found. Run 'make run' first." && exit 1)
+	go run ./cmd/generate-site
+
+# Serve Hugo site locally for preview
+serve-site: generate-site
+	@echo "Starting Hugo dev server..."
+	cd website && hugo server --buildDrafts
+
+# Build Hugo site for production
+build-site: generate-site
+	@echo "Building Hugo site..."
+	cd website && hugo --minify
+	@echo "Site built in website/public/"
+
 # Help
 help:
 	@echo "QR Library Test Matrix - Makefile targets:"
 	@echo ""
-	@echo "  make build         - Build without CGO (3 decoders)"
-	@echo "  make build-cgo     - Build with CGO (4 decoders, includes goquirc)"
-	@echo "  make test          - Run tests without CGO"
-	@echo "  make test-cgo      - Run tests with CGO"
+	@echo "  make build         - Build with CGO (4 decoders, includes goquirc)"
+	@echo "  make build-nocgo   - Build without CGO (3 decoders)"
+	@echo "  make test          - Run tests with CGO"
+	@echo "  make test-nocgo    - Run tests without CGO"
 	@echo "  make test-coverage - Generate coverage report"
 	@echo "  make lint          - Run linter (requires golangci-lint)"
 	@echo "  make fmt           - Format code and run go vet"
@@ -122,12 +139,19 @@ help:
 	@echo "  make run-full      - Build and run full test matrix"
 	@echo "  make deps          - Download dependencies"
 	@echo "  make tidy          - Tidy go.mod"
+	@echo "  make generate-site - Generate Hugo data from results"
+	@echo "  make serve-site    - Preview site locally"
+	@echo "  make build-site    - Build production site"
 	@echo "  make help          - Show this help"
 	@echo ""
-	@echo "CGO Build Process:"
-	@echo "  vendor -> vendor C sources -> build libquirc.a -> copy to root -> build-cgo"
+	@echo "CGO Build Process (automatic):"
+	@echo "  vendor -> vendor C sources -> build libquirc.a -> copy to root -> build"
+	@echo ""
+	@echo "Website Build Process:"
+	@echo "  run -> generate-site -> serve-site/build-site"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make                      # Format, lint, test, build"
-	@echo "  make build-cgo            # Build with CGO support"
+	@echo "  make                      # Format, lint, test, build (with CGO)"
+	@echo "  make build-nocgo          # Build without CGO support"
 	@echo "  make test-coverage        # Generate coverage report"
+	@echo "  make run && make serve-site  # Run benchmarks and preview site"

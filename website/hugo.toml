@@ -1,0 +1,11 @@
+baseURL = 'https://13rac1.github.io/qr-benchmarks/'
+languageCode = 'en-us'
+title = 'QR Library Benchmark'
+
+[params]
+  description = "Benchmark results for Go QR code encoder and decoder libraries"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true

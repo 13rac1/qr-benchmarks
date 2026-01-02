@@ -1,0 +1,129 @@
+{{ define "main" }}
+<h1>Failure Analysis</h1>
+
+<p>Detailed breakdown of test failures by error type and test conditions.</p>
+
+{{ $failures := .Site.Data.failures }}
+
+<h2>Failures by Error Type</h2>
+<div class="summary-cards">
+  <div class="card">
+    <h3>Encode Errors</h3>
+    <div class="value danger">{{ $failures.byType.encode }}</div>
+    <div>QR capacity exceeded or encoder bug</div>
+  </div>
+  <div class="card">
+    <h3>Decode Errors</h3>
+    <div class="value danger">{{ $failures.byType.decode }}</div>
+    <div>Decoder failed to read QR code</div>
+  </div>
+  <div class="card">
+    <h3>Data Mismatches</h3>
+    <div class="value danger">{{ $failures.byType.dataMismatch }}</div>
+    <div>Decoded data differs from input</div>
+  </div>
+</div>
+
+<h2>Fractional vs Integer Module Sizes</h2>
+<p>QR codes with non-integer module sizes (pixels per module) may cause decoder issues.</p>
+<table>
+  <thead>
+    <tr>
+      <th>Module Type</th>
+      <th>Failure Rate</th>
+      <th>Failures</th>
+      <th>Total Tests</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>{{ $failures.fractionalModule.condition }}</td>
+      <td class="{{ if ge $failures.fractionalModule.rate 10.0 }}rate-low{{ else if ge $failures.fractionalModule.rate 5.0 }}rate-medium{{ else }}rate-high{{ end }}">
+        {{ printf "%.1f%%" $failures.fractionalModule.rate }}
+      </td>
+      <td>{{ $failures.fractionalModule.failures }}</td>
+      <td>{{ $failures.fractionalModule.total }}</td>
+    </tr>
+    <tr>
+      <td>{{ $failures.integerModule.condition }}</td>
+      <td class="{{ if ge $failures.integerModule.rate 10.0 }}rate-low{{ else if ge $failures.integerModule.rate 5.0 }}rate-medium{{ else }}rate-high{{ end }}">
+        {{ printf "%.1f%%" $failures.integerModule.rate }}
+      </td>
+      <td>{{ $failures.integerModule.failures }}</td>
+      <td>{{ $failures.integerModule.total }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Failures by Data Size</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Data Size</th>
+      <th>Failure Rate</th>
+      <th>Failures</th>
+      <th>Total Tests</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $failures.byDataSize }}
+    <tr>
+      <td>{{ .condition }}</td>
+      <td class="{{ if ge .rate 10.0 }}rate-low{{ else if ge .rate 5.0 }}rate-medium{{ else }}rate-high{{ end }}">
+        {{ printf "%.1f%%" .rate }}
+      </td>
+      <td>{{ .failures }}</td>
+      <td>{{ .total }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+
+<h2>Failures by Pixel Size</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Pixel Size</th>
+      <th>Failure Rate</th>
+      <th>Failures</th>
+      <th>Total Tests</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $failures.byPixelSize }}
+    <tr>
+      <td>{{ .condition }}</td>
+      <td class="{{ if ge .rate 10.0 }}rate-low{{ else if ge .rate 5.0 }}rate-medium{{ else }}rate-high{{ end }}">
+        {{ printf "%.1f%%" .rate }}
+      </td>
+      <td>{{ .failures }}</td>
+      <td>{{ .total }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+
+<h2>Failures by Content Type</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Content Type</th>
+      <th>Failure Rate</th>
+      <th>Failures</th>
+      <th>Total Tests</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $failures.byContentType }}
+    <tr>
+      <td>{{ .condition }}</td>
+      <td class="{{ if ge .rate 10.0 }}rate-low{{ else if ge .rate 5.0 }}rate-medium{{ else }}rate-high{{ end }}">
+        {{ printf "%.1f%%" .rate }}
+      </td>
+      <td>{{ .failures }}</td>
+      <td>{{ .total }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+{{ end }}

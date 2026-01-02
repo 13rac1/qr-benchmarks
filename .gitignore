@@ -14,6 +14,12 @@ results/
 coverage.out
 coverage.html
 
+# Hugo generated files
+website/public/
+website/data/
+website/resources/
+website/.hugo_build.lock
+
 # Go workspace
 vendor/
 

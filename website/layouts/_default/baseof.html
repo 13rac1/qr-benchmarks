@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ .Title }} | {{ .Site.Title }}</title>
+  <meta name="description" content="{{ .Site.Params.description }}">
+  <link rel="stylesheet" href="{{ "css/style.css" | relURL }}">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="{{ .Site.Home.RelPermalink }}" class="logo">QR Library Benchmark</a>
+      <ul>
+        <li><a href="{{ .Site.Home.RelPermalink }}">Home</a></li>
+        <li><a href="{{ "encoders/" | relURL }}">Encoders</a></li>
+        <li><a href="{{ "decoders/" | relURL }}">Decoders</a></li>
+        <li><a href="{{ "matrix/" | relURL }}">Matrix</a></li>
+        <li><a href="{{ "failures/" | relURL }}">Failures</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    {{ block "main" . }}{{ end }}
+  </main>
+  <footer>
+    <p>Generated {{ with .Site.Data.summary }}{{ .timestamp }}{{ end }}</p>
+    <p><a href="https://github.com/13rac1/qr-benchmarks">Source Code</a></p>
+  </footer>
+</body>
+</html>

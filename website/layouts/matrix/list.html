@@ -1,0 +1,81 @@
+{{ define "main" }}
+<h1>Compatibility Matrix</h1>
+
+<p>Success rate for each encoder + decoder combination. Color coding:
+<span class="rate-high">green (&ge;95%)</span>,
+<span class="rate-medium">yellow (80-95%)</span>,
+<span class="rate-low">red (&lt;80%)</span>.</p>
+
+{{ $combinations := .Site.Data.combinations }}
+{{ $encoders := .Site.Data.encoders }}
+{{ $decoders := .Site.Data.decoders }}
+
+{{ with $combinations.best }}
+<div class="summary-cards">
+  <div class="card winner">
+    <h3>Best Combination</h3>
+    <div class="value">{{ .encoder }} + {{ .decoder }}</div>
+    <div>{{ printf "%.1f%%" .successRate }} success rate</div>
+  </div>
+</div>
+{{ end }}
+
+<h2>Matrix View</h2>
+<table class="matrix-table">
+  <thead>
+    <tr>
+      <th>Encoder \ Decoder</th>
+      {{ range $decoders }}
+      <th>{{ .name }}</th>
+      {{ end }}
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $enc := $encoders }}
+    <tr>
+      <td class="encoder-name">{{ $enc.name }}</td>
+      {{ range $dec := $decoders }}
+        {{ $stats := index $enc.byDecoder $dec.name }}
+        {{ if $stats }}
+        <td class="{{ if ge $stats.successRate 95.0 }}bg-high{{ else if ge $stats.successRate 80.0 }}bg-medium{{ else }}bg-low{{ end }}">
+          {{ printf "%.0f%%" $stats.successRate }}
+        </td>
+        {{ else }}
+        <td>-</td>
+        {{ end }}
+      {{ end }}
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+
+<h2>Detailed Results</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Rank</th>
+      <th>Encoder</th>
+      <th>Decoder</th>
+      <th>Success Rate</th>
+      <th>Avg Encode</th>
+      <th>Avg Decode</th>
+      <th>Tests</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $i, $c := $combinations.matrix }}
+    <tr>
+      <td>{{ add $i 1 }}</td>
+      <td>{{ .encoder }}</td>
+      <td>{{ .decoder }}</td>
+      <td class="{{ if ge .successRate 95.0 }}rate-high{{ else if ge .successRate 80.0 }}rate-medium{{ else }}rate-low{{ end }}">
+        {{ printf "%.1f%%" .successRate }}
+      </td>
+      <td>{{ printf "%.2fms" .avgEncodeMs }}</td>
+      <td>{{ printf "%.2fms" .avgDecodeMs }}</td>
+      <td>{{ .tests }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+{{ end }}
