@@ -3,6 +3,7 @@ module github.com/13rac1/qr-library-test
 go 1.25.5
 
 require (
+	github.com/KangSpace/gqrcode v0.0.1
 	github.com/boombuler/barcode v1.1.0
 	github.com/kdar/goquirc v0.0.0-20170404200522-467c1664402a
 	github.com/liyue201/goqr v0.0.0-20200803022322-df443203d4ea
@@ -14,6 +15,7 @@ require (
 )
 
 require (
+	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
