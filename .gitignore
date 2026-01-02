@@ -17,6 +17,7 @@ coverage.html
 # Hugo generated files
 website/public/
 website/data/
+website/static/data/
 website/resources/
 website/.hugo_build.lock
 

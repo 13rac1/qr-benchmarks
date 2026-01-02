@@ -132,6 +132,17 @@ type SummaryData struct {
 	DecoderCount    int             `json:"decoderCount"`
 }
 
+type TestConfigData struct {
+	Timestamp    string   `json:"timestamp"`
+	DataSizes    []int    `json:"dataSizes"`
+	PixelSizes   []int    `json:"pixelSizes"`
+	ContentTypes []string `json:"contentTypes"`
+	Encoders     []string `json:"encoders"`
+	Decoders     []string `json:"decoders"`
+	TestsPerPair int      `json:"testsPerPair"`
+	TotalTests   int      `json:"totalTests"`
+}
+
 func main() {
 	resultsDir := "results"
 	outputDir := "website/data"
@@ -192,7 +203,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	testConfig := computeTestConfig(results, encoders, decoders)
+	if err := writeJSON(filepath.Join(outputDir, "testconfig.json"), testConfig); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing testconfig.json: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Copy raw JSON files to static directory for download
+	staticDir := "website/static"
+	if err := copyRawJSONFiles(resultsDir, staticDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Error copying raw JSON files: %v\n", err)
+		os.Exit(1)
+	}
+
 	fmt.Printf("Generated Hugo data files in %s\n", outputDir)
+	fmt.Printf("Copied raw JSON files to %s/data/raw/\n", staticDir)
 }
 
 func loadAllResults(dir string) ([]RawTestResult, error) {
@@ -707,4 +732,123 @@ func writeJSON(path string, data interface{}) error {
 		return err
 	}
 	return os.WriteFile(path, content, 0644)
+}
+
+func computeTestConfig(results []RawTestResult, encoders []EncoderStats, decoders []DecoderStats) TestConfigData {
+	// Extract unique values using maps
+	dataSizeMap := make(map[int]bool)
+	pixelSizeMap := make(map[int]bool)
+	contentTypeMap := make(map[string]bool)
+	encoderMap := make(map[string]bool)
+	decoderMap := make(map[string]bool)
+
+	for _, r := range results {
+		dataSizeMap[r.DataSize] = true
+		pixelSizeMap[r.PixelSize] = true
+		contentTypeMap[r.ContentType] = true
+		encoderMap[r.Encoder] = true
+		decoderMap[r.Decoder] = true
+	}
+
+	// Convert maps to sorted slices
+	var dataSizes []int
+	for size := range dataSizeMap {
+		dataSizes = append(dataSizes, size)
+	}
+	sort.Ints(dataSizes)
+
+	var pixelSizes []int
+	for size := range pixelSizeMap {
+		pixelSizes = append(pixelSizes, size)
+	}
+	sort.Ints(pixelSizes)
+
+	var contentTypes []string
+	for ct := range contentTypeMap {
+		contentTypes = append(contentTypes, ct)
+	}
+	sort.Strings(contentTypes)
+
+	var encoderNames []string
+	for name := range encoderMap {
+		encoderNames = append(encoderNames, name)
+	}
+	sort.Strings(encoderNames)
+
+	var decoderNames []string
+	for name := range decoderMap {
+		decoderNames = append(decoderNames, name)
+	}
+	sort.Strings(decoderNames)
+
+	// Calculate tests per encoder/decoder pair
+	testsPerPair := 0
+	if len(encoderNames) > 0 && len(decoderNames) > 0 {
+		testsPerPair = len(results) / (len(encoderNames) * len(decoderNames))
+	}
+
+	return TestConfigData{
+		Timestamp:    time.Now().UTC().Format(time.RFC3339),
+		DataSizes:    dataSizes,
+		PixelSizes:   pixelSizes,
+		ContentTypes: contentTypes,
+		Encoders:     encoderNames,
+		Decoders:     decoderNames,
+		TestsPerPair: testsPerPair,
+		TotalTests:   len(results),
+	}
+}
+
+func copyRawJSONFiles(resultsDir, staticDir string) error {
+	// Create destination directory
+	rawDataDir := filepath.Join(staticDir, "data", "raw")
+	if err := os.MkdirAll(rawDataDir, 0755); err != nil {
+		return fmt.Errorf("creating raw data directory: %w", err)
+	}
+
+	// Copy encoder JSON files
+	encodersDir := filepath.Join(resultsDir, "encoders")
+	encoderFiles, err := os.ReadDir(encodersDir)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("reading encoders directory: %w", err)
+	}
+
+	for _, entry := range encoderFiles {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		src := filepath.Join(encodersDir, entry.Name())
+		dst := filepath.Join(rawDataDir, entry.Name())
+		if err := copyFile(src, dst); err != nil {
+			return fmt.Errorf("copying %s: %w", entry.Name(), err)
+		}
+	}
+
+	// Copy decoder JSON files
+	decodersDir := filepath.Join(resultsDir, "decoders")
+	decoderFiles, err := os.ReadDir(decodersDir)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("reading decoders directory: %w", err)
+	}
+
+	for _, entry := range decoderFiles {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		src := filepath.Join(decodersDir, entry.Name())
+		dst := filepath.Join(rawDataDir, entry.Name())
+		if err := copyFile(src, dst); err != nil {
+			return fmt.Errorf("copying %s: %w", entry.Name(), err)
+		}
+	}
+
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0644)
 }

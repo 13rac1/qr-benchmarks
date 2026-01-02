@@ -1,0 +1,85 @@
+{{ define "main" }}
+<h1>Test Configuration</h1>
+
+<!-- Test Summary Card -->
+<div class="card">
+  <h2>Test Run Summary</h2>
+  {{ with .Site.Data.testconfig }}
+  <p><strong>Timestamp:</strong> {{ .timestamp }}</p>
+  <p><strong>Total Tests:</strong> {{ .totalTests }}</p>
+  <p><strong>Tests per Encoder/Decoder Pair:</strong> {{ .testsPerPair }}</p>
+  {{ end }}
+</div>
+
+<!-- Test Matrix Configuration -->
+<div class="card">
+  <h2>Test Matrix</h2>
+  {{ with .Site.Data.testconfig }}
+
+  <h3>Data Sizes ({{ len .dataSizes }})</h3>
+  <p>{{ delimit .dataSizes ", " }} bytes</p>
+
+  <h3>Pixel Sizes ({{ len .pixelSizes }})</h3>
+  <p>{{ delimit .pixelSizes ", " }}px</p>
+
+  <h3>Content Types ({{ len .contentTypes }})</h3>
+  <ul>
+    {{ range .contentTypes }}
+    <li>{{ . }}</li>
+    {{ end }}
+  </ul>
+  {{ end }}
+</div>
+
+<!-- Libraries Tested -->
+<div class="card">
+  <h2>Libraries Tested</h2>
+  {{ with .Site.Data.testconfig }}
+
+  <h3>Encoders ({{ len .encoders }})</h3>
+  <ul>
+    {{ range .encoders }}
+    <li><a href="https://github.com/{{ . }}" target="_blank" rel="noopener noreferrer">{{ . }}</a></li>
+    {{ end }}
+  </ul>
+
+  <h3>Decoders ({{ len .decoders }})</h3>
+  <ul>
+    {{ range .decoders }}
+    <li><a href="https://github.com/{{ . }}" target="_blank" rel="noopener noreferrer">{{ . }}</a></li>
+    {{ end }}
+  </ul>
+  {{ end }}
+</div>
+
+<!-- Raw Data Downloads -->
+<div class="card">
+  <h2>Download Raw Test Data (JSON)</h2>
+  {{ with .Site.Data.testconfig }}
+
+  <h3>By Encoder</h3>
+  <p>Individual JSON files containing all test results for each encoder:</p>
+  <ul>
+    {{ range .encoders }}
+    <li>
+      <a href="{{ printf "data/raw/%s.json" (replace . "/" "_") | relURL }}" download>
+        {{ . }}.json
+      </a>
+    </li>
+    {{ end }}
+  </ul>
+
+  <h3>By Decoder</h3>
+  <p>Individual JSON files containing all test results for each decoder:</p>
+  <ul>
+    {{ range .decoders }}
+    <li>
+      <a href="{{ printf "data/raw/%s.json" (replace . "/" "_") | relURL }}" download>
+        {{ . }}.json
+      </a>
+    </li>
+    {{ end }}
+  </ul>
+  {{ end }}
+</div>
+{{ end }}

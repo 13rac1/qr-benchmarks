@@ -28,15 +28,15 @@
 <div class="summary-cards">
   <div class="card winner">
     <h3>Best Encoder</h3>
-    <div class="value">{{ .bestEncoder }}</div>
+    <div class="value"><a href="https://github.com/{{ .bestEncoder }}" target="_blank" rel="noopener noreferrer">{{ .bestEncoder }}</a></div>
   </div>
   <div class="card winner">
     <h3>Best Decoder</h3>
-    <div class="value">{{ .bestDecoder }}</div>
+    <div class="value"><a href="https://github.com/{{ .bestDecoder }}" target="_blank" rel="noopener noreferrer">{{ .bestDecoder }}</a></div>
   </div>
   <div class="card winner">
     <h3>Best Combination</h3>
-    <div class="value">{{ .bestCombination.encoder }} + {{ .bestCombination.decoder }}</div>
+    <div class="value"><a href="https://github.com/{{ .bestCombination.encoder }}" target="_blank" rel="noopener noreferrer">{{ .bestCombination.encoder }}</a> + <a href="https://github.com/{{ .bestCombination.decoder }}" target="_blank" rel="noopener noreferrer">{{ .bestCombination.decoder }}</a></div>
     <div>{{ printf "%.1f%%" .bestCombination.successRate }} success</div>
   </div>
 </div>
@@ -58,7 +58,7 @@
     {{ range $i, $e := .Site.Data.encoders }}
     <tr>
       <td>{{ add $i 1 }}</td>
-      <td>{{ .name }}</td>
+      <td><a href="https://github.com/{{ .name }}" target="_blank" rel="noopener noreferrer">{{ .name }}</a></td>
       <td class="{{ if ge .successRate 95.0 }}rate-high{{ else if ge .successRate 80.0 }}rate-medium{{ else }}rate-low{{ end }}">
         {{ printf "%.1f%%" .successRate }}
       </td>
@@ -86,7 +86,7 @@
     {{ range $i, $d := .Site.Data.decoders }}
     <tr>
       <td>{{ add $i 1 }}</td>
-      <td>{{ .name }}</td>
+      <td><a href="https://github.com/{{ .name }}" target="_blank" rel="noopener noreferrer">{{ .name }}</a></td>
       <td class="{{ if ge .successRate 95.0 }}rate-high{{ else if ge .successRate 80.0 }}rate-medium{{ else }}rate-low{{ end }}">
         {{ printf "%.1f%%" .successRate }}
       </td>

@@ -14,7 +14,7 @@
 <div class="summary-cards">
   <div class="card winner">
     <h3>Best Combination</h3>
-    <div class="value">{{ .encoder }} + {{ .decoder }}</div>
+    <div class="value"><a href="https://github.com/{{ .encoder }}" target="_blank" rel="noopener noreferrer">{{ .encoder }}</a> + <a href="https://github.com/{{ .decoder }}" target="_blank" rel="noopener noreferrer">{{ .decoder }}</a></div>
     <div>{{ printf "%.1f%%" .successRate }} success rate</div>
   </div>
 </div>
@@ -26,14 +26,14 @@
     <tr>
       <th>Encoder \ Decoder</th>
       {{ range $decoders }}
-      <th>{{ .name }}</th>
+      <th><a href="https://github.com/{{ .name }}" target="_blank" rel="noopener noreferrer">{{ .name }}</a></th>
       {{ end }}
     </tr>
   </thead>
   <tbody>
     {{ range $enc := $encoders }}
     <tr>
-      <td class="encoder-name">{{ $enc.name }}</td>
+      <td class="encoder-name"><a href="https://github.com/{{ $enc.name }}" target="_blank" rel="noopener noreferrer">{{ $enc.name }}</a></td>
       {{ range $dec := $decoders }}
         {{ $stats := index $enc.byDecoder $dec.name }}
         {{ if $stats }}
@@ -67,8 +67,8 @@
     {{ range $i, $c := $combinations.matrix }}
     <tr>
       <td>{{ add $i 1 }}</td>
-      <td>{{ .encoder }}</td>
-      <td>{{ .decoder }}</td>
+      <td><a href="https://github.com/{{ .encoder }}" target="_blank" rel="noopener noreferrer">{{ .encoder }}</a></td>
+      <td><a href="https://github.com/{{ .decoder }}" target="_blank" rel="noopener noreferrer">{{ .decoder }}</a></td>
       <td class="{{ if ge .successRate 95.0 }}rate-high{{ else if ge .successRate 80.0 }}rate-medium{{ else }}rate-low{{ end }}">
         {{ printf "%.1f%%" .successRate }}
       </td>

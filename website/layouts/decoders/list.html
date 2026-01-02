@@ -19,7 +19,7 @@
     {{ range $i, $d := .Site.Data.decoders }}
     <tr>
       <td>{{ add $i 1 }}</td>
-      <td><strong>{{ .name }}</strong></td>
+      <td><strong><a href="https://github.com/{{ .name }}" target="_blank" rel="noopener noreferrer">{{ .name }}</a></strong></td>
       <td class="{{ if ge .successRate 95.0 }}rate-high{{ else if ge .successRate 80.0 }}rate-medium{{ else }}rate-low{{ end }}">
         {{ printf "%.1f%%" .successRate }}
       </td>
@@ -35,7 +35,7 @@
 <h2>Per-Encoder Breakdown</h2>
 
 {{ range $d := .Site.Data.decoders }}
-<h3>{{ .name }}</h3>
+<h3><a href="https://github.com/{{ .name }}" target="_blank" rel="noopener noreferrer">{{ .name }}</a></h3>
 <table>
   <thead>
     <tr>
@@ -49,7 +49,7 @@
   <tbody>
     {{ range $enc, $stats := .byEncoder }}
     <tr>
-      <td>{{ $enc }}</td>
+      <td><a href="https://github.com/{{ $enc }}" target="_blank" rel="noopener noreferrer">{{ $enc }}</a></td>
       <td class="{{ if ge $stats.successRate 95.0 }}rate-high{{ else if ge $stats.successRate 80.0 }}rate-medium{{ else }}rate-low{{ end }}">
         {{ printf "%.1f%%" $stats.successRate }}
       </td>
