@@ -39,9 +39,10 @@ libquirc.a: vendor/github.com/kdar/goquirc/libquirc.a
 	cp vendor/github.com/kdar/goquirc/libquirc.a .
 
 # Build with CGO (default - includes goquirc decoder - 4 decoders)
+# CGO_LDFLAGS includes -lm for Linux (math library with rint function)
 build: libquirc.a
 	@echo "Building with CGO..."
-	CGO_ENABLED=1 go build -mod=vendor -o bin/qr-tester ./cmd/qr-tester
+	CGO_ENABLED=1 CGO_LDFLAGS="-lm" go build -mod=vendor -o bin/qr-tester ./cmd/qr-tester
 	@echo "Binary: bin/qr-tester"
 
 # Build without CGO (3 decoders)
@@ -53,7 +54,7 @@ build-nocgo:
 # Run tests (with CGO)
 test: libquirc.a
 	@echo "Running tests (CGO enabled)..."
-	CGO_ENABLED=1 go test -mod=vendor -v ./...
+	CGO_ENABLED=1 CGO_LDFLAGS="-lm" go test -mod=vendor -v ./...
 
 # Run tests (without CGO)
 test-nocgo:
@@ -63,7 +64,7 @@ test-nocgo:
 # Run tests with coverage
 test-coverage: libquirc.a
 	@echo "Running tests with coverage..."
-	CGO_ENABLED=1 go test -mod=vendor -v -coverprofile=coverage.out ./...
+	CGO_ENABLED=1 CGO_LDFLAGS="-lm" go test -mod=vendor -v -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
@@ -71,7 +72,7 @@ test-coverage: libquirc.a
 lint: libquirc.a
 	@echo "Linting code..."
 	@command -v golangci-lint >/dev/null 2>&1 || { echo "golangci-lint not installed, skipping..."; exit 0; }
-	@CGO_ENABLED=1 golangci-lint run ./... || { echo "Linting completed with warnings"; exit 0; }
+	@CGO_ENABLED=1 CGO_LDFLAGS="-lm" golangci-lint run ./... || { echo "Linting completed with warnings"; exit 0; }
 
 # Format code
 fmt:
