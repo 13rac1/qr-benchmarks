@@ -40,8 +40,8 @@ func (e *BoombulerEncoder) Encode(data []byte, opts EncodeOptions) (EncodeResult
 		return EncodeResult{}, fmt.Errorf("boombuler: invalid error correction level %q", opts.ErrorCorrectionLevel)
 	}
 
-	// Encode using Unicode mode for binary data
-	qrCode, err := qr.Encode(string(data), level, qr.Unicode)
+	// Encode using Unicode mode for binary data with 8-bit color scheme
+	qrCode, err := qr.EncodeWithColor(string(data), level, qr.Unicode, barcode.ColorScheme8)
 	if err != nil {
 		return EncodeResult{}, fmt.Errorf("boombuler: encode failed: %w", err)
 	}
