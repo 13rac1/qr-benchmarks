@@ -1,58 +1,48 @@
-# QR Code Library Compatibility Matrix Tester
+# QR Code Library Compatibility Benchmark
 
-A systematic testing tool for identifying QR encoder/decoder incompatibilities across Go libraries.
+Systematic benchmarking tool for identifying QR encoder/decoder incompatibilities, performance characteristics, and capacity limits across Go libraries.
 
 ## The Problem
 
-Different QR code libraries handle module sizing differently. When you encode a QR code with one library and decode with another, the decode can fail at certain pixel sizes due to fractional module boundaries.
+Different QR code libraries handle encoding/decoding differently:
 
-**Real-world example**: The `skip2/go-qrcode` encoder and `makiuchi-d/gozxing` decoder are incompatible at specific pixel sizes:
+1. **Fractional module sizing**: Some encoders create non-integer pixels-per-module, causing decoder failures
+2. **Capacity handling**: Libraries differ in how they report data exceeding QR capacity
+3. **UTF-8 handling**: String encoding can add metadata bytes or replace invalid sequences
+4. **Performance**: Encode/decode speeds vary significantly between libraries
 
-```
-skip2/go-qrcode encode + gozxing decode
-Bytes\Px  320  400  440  450  460  480  512  560
---------+----------------------------------------
- 500    |  ✓    ✓    ✗    ✓    ✓    ✓    ✓    ✓
- 550    |  ✓    ✓    ✗    ✓    ✗    ✓    ✓    ✓
- 600    |  ✓    ✓    ✓    ✗    ✓    ✓    ✓    ✓
- 650    |  ✓    ✗    ✗    ✓    ✓    ✓    ✓    ✓
-```
-
-Notice the failures are non-monotonic: 440px fails while 460px succeeds. This is the fractional module sizing problem.
-
-**Root cause**: skip2 uses fractional module pixel sizes (e.g., 12.857 pixels per module) while gozxing's decoder assumes integer boundaries. When the decoder calculates module positions, rounding errors cause misreads.
-
-**Solution**: This tool systematically tests all encoder/decoder combinations to identify which pairs work reliably and at what pixel sizes.
+This tool systematically tests all encoder/decoder combinations to identify incompatibilities and measure performance.
 
 ## Quick Start
 
 ```bash
-# Clone
-git clone https://github.com/yourusername/qr-library-test.git
-cd qr-library-test
-
-# Install dependencies
-go mod download
-
-# Build
+# Build (with CGO for goquirc decoder)
 make build
 
-# Run tests (generates reports in ./results/)
-./bin/qr-tester
+# Run standard test matrix (96 tests per encoder/decoder pair)
+make run
 
-# View results
-ls results/
+# Run comprehensive tests (576 tests per pair)
+make run-full
+
+# Generate Hugo website from results
+make generate-site
+
+# Preview website locally
+make serve-site
 ```
 
 ## Features
 
-- **4 Encoders**: skip2/go-qrcode, boombuler/barcode, yeqown/go-qrcode, gozxing
-- **4 Decoders**: gozxing, tuotoo/qrcode, goqr (archived), goquirc (CGO)
-- **Matrix Testing**: 6 data sizes × 8 pixel sizes × 4 error levels = 192 test cases per encoder/decoder pair
-- **Module Analysis**: Calculates actual module pixel sizes and identifies fractional values
-- **Pattern Detection**: Finds non-monotonic failures that indicate module boundary issues
-- **Parallel Execution**: Concurrent testing with configurable worker pool
-- **Multiple Reports**: Markdown reports per encoder/decoder combination
+- **4 Encoders**: skip2/go-qrcode, boombuler/barcode, yeqown/go-qrcode, makiuchi-d/gozxing
+- **4 Decoders**: makiuchi-d/gozxing, tuotoo/qrcode, liyue201/goqr, kdar/goquirc (CGO)
+- **Test Modes**:
+  - Standard: 4 data sizes × 4 content types × 6 pixel sizes = 96 tests per pair
+  - Comprehensive: 12 data sizes × 4 content types × 12 pixel sizes = 576 tests per pair
+- **Content Types**: Numeric, alphanumeric, binary, UTF-8
+- **Capacity Tracking**: Separates QR capacity exceeded from encoder bugs
+- **JSON Output**: Raw test results split by encoder and decoder
+- **Hugo Website**: Interactive benchmark results with sortable tables and charts
 
 ## Installation
 
@@ -84,203 +74,131 @@ make deps
 
 ## Usage
 
-### Basic Usage
+### Running Tests
 
-Run all tests with default settings:
-
+**Standard test mode** (4 data sizes × 4 content types × 6 pixel sizes):
 ```bash
 ./bin/qr-tester
+# or
+make run
 ```
 
-This tests:
-- 4 encoders × 4 decoders = 16 combinations
-- 6 data sizes: 500, 550, 600, 650, 750, 800 bytes
-- 8 pixel sizes: 320, 400, 440, 450, 460, 480, 512, 560 pixels
-- 4 error correction levels: L, M, Q, H
-- Generates markdown reports in `./results/`
-
-### Custom Configuration
-
-Test specific combinations:
-
+**Comprehensive test mode** (12 data sizes × 4 content types × 12 pixel sizes):
 ```bash
-./bin/qr-tester \
-  -data-sizes "500,600,700" \
-  -pixel-sizes "400,480,512" \
-  -error-levels "M,Q" \
-  -output ./my-results
+./bin/qr-tester -test-mode=comprehensive
+# or
+make run-full
 ```
 
-Skip archived and CGO libraries:
+### Test Configuration
 
-```bash
-./bin/qr-tester -skip-archived=true -skip-cgo=true
-```
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-test-mode` | `standard` | Test mode: `standard` or `comprehensive` |
+| `-output-dir` | `./results` | Output directory for JSON results |
 
-Run serially (easier for debugging):
+**Standard mode**:
+- Data sizes: 10, 25, 50, 100 bytes
+- Pixel sizes: 128, 200, 256, 320, 400, 512
+- Content types: numeric, alphanumeric, binary, utf8
 
-```bash
-./bin/qr-tester -parallel=false
-```
-
-### Configuration Options
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `-data-sizes` | string | "500,550,600,650,750,800" | Comma-separated byte sizes to test |
-| `-pixel-sizes` | string | "320,400,440,450,460,480,512,560" | Comma-separated image dimensions |
-| `-error-levels` | string | "L,M,Q,H" | Comma-separated error correction levels |
-| `-parallel` | bool | true | Run tests concurrently |
-| `-timeout` | duration | 10s | Timeout per decoder operation |
-| `-max-workers` | int | NumCPU | Maximum concurrent workers |
-| `-skip-cgo` | bool | false | Skip CGO-based decoders (goquirc) |
-| `-skip-archived` | bool | false | Skip archived libraries (goqr) |
-| `-output` | string | "./results" | Output directory for reports |
-| `-format` | string | "markdown,html" | Report formats (currently only markdown) |
-| `-timestamp` | bool | true | Add timestamp to report filenames |
-| `-version` | bool | false | Print version and exit |
-
-### Example Workflows
-
-**Quick check of skip2+gozxing incompatibility**:
-```bash
-./bin/qr-tester \
-  -data-sizes "500,550,600,650" \
-  -pixel-sizes "320,400,440,450,460,480,512,560" \
-  -error-levels "M"
-```
-
-**Test only gozxing encoder+decoder (should always work)**:
-```bash
-# Edit main.go to use only GozxingEncoder, rebuild, then:
-./bin/qr-tester
-```
-
-**Production validation - test your actual use case**:
-```bash
-./bin/qr-tester \
-  -data-sizes "750" \
-  -pixel-sizes "512" \
-  -error-levels "H"
-```
+**Comprehensive mode**:
+- Data sizes: 10, 25, 50, 100, 200, 300, 500, 700, 1000, 1500, 2000, 2500 bytes
+- Pixel sizes: 128, 200, 256, 320, 400, 440, 450, 460, 480, 512, 560, 600, 720, 800, 1024
+- Content types: numeric, alphanumeric, binary, utf8
 
 ## Output
 
-### Report Structure
+### JSON Results Structure
 
 ```
 results/
-├── skip2-go-qrcode_gozxing_20251231-120000.md
-├── skip2-go-qrcode_tuotoo_20251231-120000.md
-├── skip2-go-qrcode_goqr_20251231-120000.md
-├── boombuler-barcode_gozxing_20251231-120000.md
-└── ... (one file per encoder/decoder combination)
+├── encoders/
+│   ├── skip2_go-qrcode.json
+│   ├── boombuler_barcode.json
+│   ├── yeqown_go-qrcode.json
+│   └── makiuchi-d_gozxing.json
+└── decoders/
+    ├── makiuchi-d_gozxing.json
+    ├── tuotoo_qrcode.json
+    ├── liyue201_goqr.json
+    └── kdar_goquirc.json
 ```
 
-### Report Contents
+Each JSON file contains:
+```json
+{
+  "timestamp": "2026-01-01T12:00:00Z",
+  "results": [
+    {
+      "encoder": "skip2/go-qrcode",
+      "decoder": "makiuchi-d/gozxing",
+      "dataSize": 100,
+      "pixelSize": 256,
+      "contentType": "binary",
+      "success": true,
+      "isCapacityExceeded": false,
+      "encodeTimeMs": 1.234,
+      "decodeTimeMs": 0.567,
+      "qrVersion": 2,
+      "moduleCount": 25,
+      "modulePixelSize": 10.24,
+      "isFractionalModule": true
+    }
+  ]
+}
+```
 
-Each report includes:
+### Generating Website
 
-1. **Summary Statistics**
-   - Total tests run
-   - Success rate
-   - Total execution time
-   - Average encode/decode times
-
-2. **Compatibility Matrix**
-   - 2D grid: pixel size (columns) × data size (rows)
-   - ✓ = Success, ✗ = Failure
-   - Easy visual identification of problem areas
-
-3. **Failure Analysis**
-   - List of all failures with details
-   - Error messages
-   - Module size calculations
-
-4. **Module Size Analysis**
-   - Calculated module pixel sizes for each test
-   - Fractional values highlighted
-   - Helps identify root cause
-
-5. **Timing Breakdown**
-   - Encode time per test case
-   - Decode time per test case
-   - Identifies performance outliers
+Generate Hugo static site from JSON results:
+```bash
+make generate-site   # Creates website/data/*.json
+make build-site      # Builds static HTML in website/public/
+make serve-site      # Preview at http://localhost:1313
+```
 
 ### Interpreting Results
 
-**✓ (Success)**: Encode/decode cycle completed successfully, data matches exactly.
+**Success/Failure**:
+- `success: true` - Encode/decode cycle completed, data matches exactly
+- `success: false` - Failure with error type:
+  - `encode` - Encoding failed (check `isCapacityExceeded`)
+  - `decode` - Decoder returned error or panicked
+  - `dataMismatch` - Decoded data doesn't match original
 
-**✗ (Failure)**: Either:
-- Decoder returned an error
-- Decoder succeeded but data doesn't match original
-- Decoder panicked (caught and converted to error)
-- Decoder timed out
+**Capacity Exceeded** (`isCapacityExceeded: true`):
+- Encoder correctly reported data exceeds QR capacity
+- Not counted as failure - it's a valid rejection
+- Success rate = successes / (total - capacitySkips)
 
-**Fractional Module Size**: When a module size is non-integer (e.g., 12.857), incompatibility is likely. Integer module sizes (e.g., 13.0) are safer.
-
-**Non-monotonic Failures**: If 440px fails but 450px succeeds, this indicates module boundary issues, not data size problems.
+**Module Analysis**:
+- `isFractionalModule: true` - Non-integer pixels per module (e.g., 10.24)
+- Fractional modules often cause decoder failures
+- Integer module sizes are more reliable
 
 ## Architecture
 
-```
-qr-library-test/
-├── cmd/
-│   └── qr-tester/          # CLI entry point, flag parsing
-│       └── main.go
-├── internal/
-│   ├── config/             # Configuration management
-│   │   ├── config.go       # Config struct, defaults, validation
-│   │   └── config_test.go
-│   ├── encoders/           # Encoder wrappers (4 implementations)
-│   │   ├── interface.go    # Encoder interface
-│   │   ├── skip2.go        # skip2/go-qrcode wrapper
-│   │   ├── boombuler.go    # boombuler/barcode wrapper
-│   │   ├── yeqown.go       # yeqown/go-qrcode wrapper
-│   │   ├── gozxing_encoder.go  # gozxing encoder wrapper
-│   │   └── *_test.go
-│   ├── decoders/           # Decoder wrappers (4 implementations)
-│   │   ├── interface.go    # Decoder interface
-│   │   ├── gozxing_decoder.go  # gozxing decoder wrapper
-│   │   ├── tuotoo.go       # tuotoo/qrcode wrapper (panic recovery)
-│   │   ├── goqr.go         # goqr wrapper (archived library)
-│   │   ├── goquirc.go      # goquirc CGO wrapper
-│   │   ├── goquirc_stub.go # No-op when CGO disabled
-│   │   ├── registry*.go    # Decoder registration (build tags)
-│   │   └── *_test.go
-│   ├── testdata/           # Test case generation
-│   │   ├── generator.go    # Creates test data at various sizes
-│   │   ├── module_calc.go  # QR module size calculations
-│   │   └── *_test.go
-│   └── matrix/             # Test orchestration
-│       ├── runner.go       # Executes test matrix
-│       ├── result.go       # Result aggregation
-│       └── *_test.go
-├── pkg/
-│   └── report/             # Report generation (public API)
-│       ├── markdown.go     # Markdown report generator
-│       └── *_test.go
-├── docs/
-│   └── prd-mvp.md          # Original problem analysis
-├── Makefile                # Build automation
-├── go.mod
-├── go.sum
-└── README.md
-```
+### Core Components
+
+- **`cmd/qr-tester`** - CLI entry point with test mode flags
+- **`internal/encoders`** - 4 encoder wrappers with unified interface
+- **`internal/decoders`** - 4 decoder wrappers with panic recovery
+- **`internal/testdata`** - Test data generation (numeric, alphanumeric, binary, UTF-8)
+- **`internal/matrix`** - Test execution and result aggregation
+- **`pkg/report`** - JSON output generation split by encoder/decoder
+- **`cmd/generate-site`** - Converts JSON to Hugo data format
+- **`website/`** - Hugo static site for interactive results
 
 ### Key Design Decisions
 
-**Interfaces**: Encoder and Decoder interfaces allow uniform testing despite library differences.
+**Capacity vs Errors**: Encoders implement `IsCapacityError()` to distinguish valid capacity rejections from bugs
 
-**Panic Recovery**: Some decoders (tuotoo) panic on invalid input. All decoder calls are wrapped with recover() to convert panics to errors.
+**UTF-8 Handling**: Test data generator ensures UTF-8 doesn't split multi-byte characters at boundaries
 
-**Build Tags**: CGO decoders use build tags (`// +build cgo`) so the project builds without a C compiler by default.
+**Panic Recovery**: Decoders that panic (tuotoo) are wrapped with recover() to convert panics to errors
 
-**Module Calculation**: We calculate expected module size as `(pixelSize - 2*quietZone) / (symbolSize + 2*border)` to identify fractional values.
-
-**Parallel Execution**: Tests run concurrently with a worker pool, but each test is independent (no shared state).
-
-**Timeouts**: Each decoder call has a timeout to prevent hanging on problematic inputs.
+**CGO Support**: goquirc decoder requires C compiler; project builds without CGO using build tags
 
 ## Development
 
@@ -310,81 +228,15 @@ make lint
 make
 ```
 
-### Adding a New Encoder
+### Adding New Libraries
 
-1. Create `internal/encoders/yourencoder.go`:
+See existing encoder/decoder wrappers in `internal/encoders/` and `internal/decoders/` for implementation patterns.
 
-```go
-package encoders
-
-import "image"
-
-type YourEncoder struct{}
-
-func (e *YourEncoder) Name() string {
-    return "yourlib"
-}
-
-func (e *YourEncoder) Encode(data []byte, opts EncodeOptions) (image.Image, error) {
-    // Wrap your library's encoder
-}
-```
-
-2. Add tests in `internal/encoders/yourencoder_test.go`
-
-3. Update `getAllEncoders()` in `cmd/qr-tester/main.go`:
-
-```go
-func getAllEncoders() []encoders.Encoder {
-    return []encoders.Encoder{
-        &encoders.Skip2Encoder{},
-        &encoders.YourEncoder{},  // Add here
-    }
-}
-```
-
-### Adding a New Decoder
-
-1. Create `internal/decoders/yourdecoder.go`:
-
-```go
-package decoders
-
-import "image"
-
-type YourDecoder struct{}
-
-func (d *YourDecoder) Name() string {
-    return "yourlib"
-}
-
-func (d *YourDecoder) Decode(img image.Image) ([]byte, error) {
-    // Wrap your library's decoder
-    // Add panic recovery if needed
-}
-```
-
-2. Add tests in `internal/decoders/yourdecoder_test.go`
-
-3. Register in `internal/decoders/registry.go`:
-
-```go
-func GetAvailableDecoders(cfg *config.Config) []Decoder {
-    decoders := []Decoder{
-        &GozxingDecoder{},
-        &YourDecoder{},  // Add here
-    }
-    // ...
-}
-```
-
-### Build Tags for CGO
-
-If your decoder requires CGO:
-
-1. Add build tag to file: `// +build cgo`
-2. Create stub file: `yourdecoder_stub.go` with `// +build !cgo`
-3. Update `registry_cgo.go` to include your decoder
+Key requirements:
+- Implement `Encoder` or `Decoder` interface
+- Add `IsCapacityError()` method to distinguish capacity limits from bugs
+- Wrap panics in decoders with `recover()` and return as errors
+- Use build tags for CGO dependencies
 
 ## Known Issues
 
