@@ -85,12 +85,12 @@ func main() {
 
 // run executes the complete test matrix and generates reports.
 func run(cfg *config.Config) error {
-	// Setup encoders (all available)
-	encoders := getAllEncoders()
+	// Setup encoders (based on config flags)
+	encs := encoders.GetAvailableEncoders(cfg)
 
 	// Setup decoders (based on config flags)
-	decoders := decoders.GetAvailableDecoders(cfg)
-	if len(decoders) == 0 {
+	decs := decoders.GetAvailableDecoders(cfg)
+	if len(decs) == 0 {
 		return fmt.Errorf("no decoders available (check CGO build and skip flags)")
 	}
 
@@ -106,13 +106,13 @@ func run(cfg *config.Config) error {
 	}
 
 	// Create runner
-	runner := matrix.NewRunner(cfg, encoders, decoders, testCases)
+	runner := matrix.NewRunner(cfg, encs, decs, testCases)
 
 	// Calculate and display test count
-	totalTests := len(encoders) * len(decoders) * len(testCases)
+	totalTests := len(encs) * len(decs) * len(testCases)
 	fmt.Printf("Running %d test combinations (%s mode)...\n", totalTests, cfg.TestMode)
-	fmt.Printf("  Encoders: %d\n", len(encoders))
-	fmt.Printf("  Decoders: %d\n", len(decoders))
+	fmt.Printf("  Encoders: %d\n", len(encs))
+	fmt.Printf("  Decoders: %d\n", len(decs))
 	fmt.Printf("  Test cases: %d\n\n", len(testCases))
 
 	// Run all tests
@@ -127,16 +127,6 @@ func run(cfg *config.Config) error {
 		return fmt.Errorf("json report failed: %w", err)
 	}
 
-	fmt.Printf("Results written to %s/results.json\n", cfg.OutputDir)
+	fmt.Printf("Results written to %s/\n", cfg.OutputDir)
 	return nil
-}
-
-// getAllEncoders returns all available QR encoders.
-func getAllEncoders() []encoders.Encoder {
-	return []encoders.Encoder{
-		&encoders.Skip2Encoder{},
-		&encoders.BoombulerEncoder{},
-		&encoders.YeqownEncoder{},
-		&encoders.GozxingEncoder{},
-	}
 }

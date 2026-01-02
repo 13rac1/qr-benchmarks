@@ -180,7 +180,6 @@ func TestValidate_NegativeMaxWorkers(t *testing.T) {
 	}
 }
 
-
 func TestRegisterFlags_Defaults(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	cfg, parse := RegisterFlags(fs)
@@ -386,7 +385,6 @@ func TestIsValidErrorLevel(t *testing.T) {
 		}
 	}
 }
-
 
 // Helper functions
 

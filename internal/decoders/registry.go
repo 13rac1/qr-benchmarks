@@ -18,7 +18,7 @@ func GetAvailableDecoders(cfg *config.Config) []Decoder {
 		decoders = append(decoders, &GoqrDecoder{})
 	}
 
-	// CGO decoder - only include if CGO enabled at build time and not skipped
+	// CGO decoders - only include if CGO enabled at build time and not skipped
 	if !cfg.SkipCGO && cgoEnabled() {
 		decoders = append(decoders, &GoquircDecoder{})
 	}
@@ -28,7 +28,6 @@ func GetAvailableDecoders(cfg *config.Config) []Decoder {
 
 // GetAllDecoders returns all decoders regardless of configuration.
 // Used for testing and full matrix runs.
-// Returns all implemented decoders: gozxing, tuotoo, goqr, and goquirc (if CGO enabled).
 func GetAllDecoders() []Decoder {
 	decoders := []Decoder{
 		&GozxingDecoder{},

@@ -442,6 +442,18 @@ make build-cgo
 
 **Why CGO**: goquirc wraps the C library "quirc", a fast and reliable decoder used in embedded systems.
 
+### chai2010/qrcode (Removed)
+
+**Status**: Removed from this project.
+
+**Reason**: The library vendors OpenCV 1.1.0 (circa 2010) which does not compile on modern macOS with current clang. The vendored C++ code has numerous compatibility issues including:
+- Pointer vs integer comparisons (`npts <= 0` where npts is a pointer)
+- Integer narrowing errors (`0x80000000` in int arrays)
+- Missing `struct` keywords for POSIX types
+- Taking addresses of temporary objects
+
+While the library works on Linux, the maintenance burden to patch the vendored OpenCV code for macOS cross-platform support was not justified given that we already have 4 working pure-Go encoders.
+
 ## FAQ
 
 **Q: Which encoder/decoder combination should I use?**

@@ -193,15 +193,15 @@ func TestGoquircDecoder_Decode_ErrorCorrectionLevels(t *testing.T) {
 	dec := &GoquircDecoder{}
 	data := "Error correction test"
 
-	levels := []qrcode.RecoveryLevel{
-		qrcode.Low,
-		qrcode.Medium,
-		qrcode.High,
-		qrcode.Highest,
+	levels := map[string]qrcode.RecoveryLevel{
+		"Low":     qrcode.Low,
+		"Medium":  qrcode.Medium,
+		"High":    qrcode.High,
+		"Highest": qrcode.Highest,
 	}
 
-	for _, level := range levels {
-		t.Run(level.String(), func(t *testing.T) {
+	for name, level := range levels {
+		t.Run(name, func(t *testing.T) {
 			pngBytes, err := qrcode.Encode(data, level, 256)
 			if err != nil {
 				t.Fatalf("Failed to generate QR code: %v", err)

@@ -1,5 +1,10 @@
 .PHONY: all build build-cgo test test-cgo test-coverage lint fmt clean run run-full deps tidy help
 
+# Variables for CGO dependency management
+GOQUIRC_VERSION := $(shell go list -m -f '{{.Version}}' github.com/kdar/goquirc)
+GOMODCACHE := $(shell go env GOMODCACHE)
+GOQUIRC_SRC := $(GOMODCACHE)/github.com/kdar/goquirc@$(GOQUIRC_VERSION)
+
 # Default target
 all: fmt lint test build
 
@@ -9,10 +14,39 @@ build:
 	CGO_ENABLED=0 go build -o bin/qr-tester ./cmd/qr-tester
 	@echo "Binary: bin/qr-tester"
 
+# Vendor Go dependencies
+vendor: go.mod go.sum
+	@echo "Vendoring Go dependencies..."
+	go mod vendor
+	@touch vendor
+
+# Copy C sources from module cache to vendor directory
+vendor/github.com/kdar/goquirc/internal: vendor
+	@echo "Copying goquirc C sources (version $(GOQUIRC_VERSION))..."
+	@test -d "$(GOQUIRC_SRC)/internal" || \
+		(echo "Error: goquirc sources not found at $(GOQUIRC_SRC)/internal" && exit 1)
+	mkdir -p vendor/github.com/kdar/goquirc
+	cp -r "$(GOQUIRC_SRC)/internal" vendor/github.com/kdar/goquirc/
+	@touch vendor/github.com/kdar/goquirc/internal
+
+# Build C library in vendor directory
+vendor/github.com/kdar/goquirc/libquirc.a: vendor/github.com/kdar/goquirc/internal
+	@echo "Building libquirc.a in vendor directory..."
+	cd vendor/github.com/kdar/goquirc && rm -f libquirc.a && $(MAKE)
+	@test -f vendor/github.com/kdar/goquirc/libquirc.a || \
+		(echo "Error: libquirc.a build failed" && exit 1)
+
+# Copy library to project root (required by goquirc CGO directive)
+# The goquirc package has: #cgo darwin LDFLAGS: ./libquirc.a
+# This hardcoded path requires the library in the working directory
+libquirc.a: vendor/github.com/kdar/goquirc/libquirc.a
+	@echo "Copying libquirc.a to project root..."
+	cp vendor/github.com/kdar/goquirc/libquirc.a .
+
 # Build with CGO (includes goquirc decoder - 4 decoders)
-build-cgo:
+build-cgo: libquirc.a
 	@echo "Building with CGO..."
-	CGO_ENABLED=1 go build -tags cgo -o bin/qr-tester-cgo ./cmd/qr-tester
+	CGO_ENABLED=1 go build -mod=vendor -o bin/qr-tester-cgo ./cmd/qr-tester
 	@echo "Binary: bin/qr-tester-cgo"
 
 # Run tests (without CGO)
@@ -21,9 +55,9 @@ test:
 	CGO_ENABLED=0 go test -v ./...
 
 # Run tests (with CGO)
-test-cgo:
+test-cgo: libquirc.a
 	@echo "Running tests (CGO enabled)..."
-	CGO_ENABLED=1 go test -tags cgo -v ./...
+	CGO_ENABLED=1 go test -mod=vendor -v ./...
 
 # Run tests with coverage
 test-coverage:
@@ -48,7 +82,7 @@ fmt:
 # Clean build artifacts
 clean:
 	@echo "Cleaning..."
-	rm -rf bin/ results/ coverage.out coverage.html
+	rm -rf bin/ results/ coverage.out coverage.html vendor/ libquirc.a
 	go clean
 
 # Run with default settings
@@ -77,7 +111,7 @@ help:
 	@echo "QR Library Test Matrix - Makefile targets:"
 	@echo ""
 	@echo "  make build         - Build without CGO (3 decoders)"
-	@echo "  make build-cgo     - Build with CGO (4 decoders, requires C compiler)"
+	@echo "  make build-cgo     - Build with CGO (4 decoders, includes goquirc)"
 	@echo "  make test          - Run tests without CGO"
 	@echo "  make test-cgo      - Run tests with CGO"
 	@echo "  make test-coverage - Generate coverage report"
@@ -89,6 +123,9 @@ help:
 	@echo "  make deps          - Download dependencies"
 	@echo "  make tidy          - Tidy go.mod"
 	@echo "  make help          - Show this help"
+	@echo ""
+	@echo "CGO Build Process:"
+	@echo "  vendor -> vendor C sources -> build libquirc.a -> copy to root -> build-cgo"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make                      # Format, lint, test, build"
