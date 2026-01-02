@@ -126,4 +126,28 @@
     {{ end }}
   </tbody>
 </table>
+
+<h2>Failures by Error Correction Level</h2>
+<table>
+  <thead>
+    <tr>
+      <th>EC Level</th>
+      <th>Failure Rate</th>
+      <th>Failures</th>
+      <th>Total Tests</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $failures.byErrorCorrection }}
+    <tr>
+      <td>{{ .condition }}</td>
+      <td class="{{ if ge .rate 10.0 }}rate-low{{ else if ge .rate 5.0 }}rate-medium{{ else }}rate-high{{ end }}">
+        {{ printf "%.1f%%" .rate }}
+      </td>
+      <td>{{ .failures }}</td>
+      <td>{{ .total }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
 {{ end }}

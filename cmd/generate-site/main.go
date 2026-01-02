@@ -11,21 +11,22 @@ import (
 
 // RawTestResult matches the JSON structure from pkg/report/json.go
 type RawTestResult struct {
-	Encoder            string  `json:"encoder"`
-	Decoder            string  `json:"decoder"`
-	DataSize           int     `json:"dataSize"`
-	PixelSize          int     `json:"pixelSize"`
-	ContentType        string  `json:"contentType"`
-	Success            bool    `json:"success"`
-	ErrorType          string  `json:"errorType,omitempty"`
-	ErrorMsg           string  `json:"errorMsg,omitempty"`
-	IsCapacityExceeded bool    `json:"isCapacityExceeded,omitempty"`
-	EncodeTimeMs       float64 `json:"encodeTimeMs"`
-	DecodeTimeMs       float64 `json:"decodeTimeMs"`
-	QRVersion          int     `json:"qrVersion,omitempty"`
-	ModuleCount        int     `json:"moduleCount,omitempty"`
-	ModulePixelSize    float64 `json:"modulePixelSize,omitempty"`
-	IsFractionalModule bool    `json:"isFractionalModule"`
+	Encoder              string  `json:"encoder"`
+	Decoder              string  `json:"decoder"`
+	DataSize             int     `json:"dataSize"`
+	PixelSize            int     `json:"pixelSize"`
+	ContentType          string  `json:"contentType"`
+	ErrorCorrectionLevel string  `json:"errorCorrectionLevel"` // "L", "M", "Q", or "H"
+	Success              bool    `json:"success"`
+	ErrorType            string  `json:"errorType,omitempty"`
+	ErrorMsg             string  `json:"errorMsg,omitempty"`
+	IsCapacityExceeded   bool    `json:"isCapacityExceeded,omitempty"`
+	EncodeTimeMs         float64 `json:"encodeTimeMs"`
+	DecodeTimeMs         float64 `json:"decodeTimeMs"`
+	QRVersion            int     `json:"qrVersion,omitempty"`
+	ModuleCount          int     `json:"moduleCount,omitempty"`
+	ModulePixelSize      float64 `json:"modulePixelSize,omitempty"`
+	IsFractionalModule   bool    `json:"isFractionalModule"`
 }
 
 type RawResults struct {
@@ -43,15 +44,26 @@ type DecoderBreakdown struct {
 	EffectiveTests int     `json:"effectiveTests"` // Tests - CapacitySkips
 }
 
+type ECBreakdown struct {
+	Level          string  `json:"level"`          // "L", "M", "Q", or "H"
+	SuccessRate    float64 `json:"successRate"`
+	AvgTimeMs      float64 `json:"avgTimeMs"`      // Encode or decode time depending on context
+	TotalTests     int     `json:"totalTests"`
+	SuccessCount   int     `json:"successCount"`
+	CapacitySkips  int     `json:"capacitySkips"`
+	EffectiveTests int     `json:"effectiveTests"` // TotalTests - CapacitySkips
+}
+
 type EncoderStats struct {
-	Name           string                      `json:"name"`
-	SuccessRate    float64                     `json:"successRate"`
-	AvgEncodeMs    float64                     `json:"avgEncodeMs"`
-	TotalTests     int                         `json:"totalTests"`
-	SuccessCount   int                         `json:"successCount"`
-	CapacitySkips  int                         `json:"capacitySkips"`
-	EffectiveTests int                         `json:"effectiveTests"` // TotalTests - CapacitySkips
-	ByDecoder      map[string]DecoderBreakdown `json:"byDecoder"`
+	Name              string                      `json:"name"`
+	SuccessRate       float64                     `json:"successRate"`
+	AvgEncodeMs       float64                     `json:"avgEncodeMs"`
+	TotalTests        int                         `json:"totalTests"`
+	SuccessCount      int                         `json:"successCount"`
+	CapacitySkips     int                         `json:"capacitySkips"`
+	EffectiveTests    int                         `json:"effectiveTests"`     // TotalTests - CapacitySkips
+	ByDecoder         map[string]DecoderBreakdown `json:"byDecoder"`
+	ByErrorCorrection map[string]ECBreakdown      `json:"byErrorCorrection"`  // Stats per EC level
 }
 
 type EncoderBreakdown struct {
@@ -63,14 +75,15 @@ type EncoderBreakdown struct {
 }
 
 type DecoderStats struct {
-	Name           string                      `json:"name"`
-	SuccessRate    float64                     `json:"successRate"`
-	AvgDecodeMs    float64                     `json:"avgDecodeMs"`
-	TotalTests     int                         `json:"totalTests"`
-	SuccessCount   int                         `json:"successCount"`
-	CapacitySkips  int                         `json:"capacitySkips"`
-	EffectiveTests int                         `json:"effectiveTests"` // TotalTests - CapacitySkips
-	ByEncoder      map[string]EncoderBreakdown `json:"byEncoder"`
+	Name              string                      `json:"name"`
+	SuccessRate       float64                     `json:"successRate"`
+	AvgDecodeMs       float64                     `json:"avgDecodeMs"`
+	TotalTests        int                         `json:"totalTests"`
+	SuccessCount      int                         `json:"successCount"`
+	CapacitySkips     int                         `json:"capacitySkips"`
+	EffectiveTests    int                         `json:"effectiveTests"`     // TotalTests - CapacitySkips
+	ByEncoder         map[string]EncoderBreakdown `json:"byEncoder"`
+	ByErrorCorrection map[string]ECBreakdown      `json:"byErrorCorrection"`  // Stats per EC level
 }
 
 type CombinationResult struct {
@@ -110,12 +123,13 @@ type ConditionFailures struct {
 }
 
 type FailuresData struct {
-	ByType           FailuresByType      `json:"byType"`
-	ByDataSize       []ConditionFailures `json:"byDataSize"`
-	ByPixelSize      []ConditionFailures `json:"byPixelSize"`
-	ByContentType    []ConditionFailures `json:"byContentType"`
-	FractionalModule ConditionFailures   `json:"fractionalModule"`
-	IntegerModule    ConditionFailures   `json:"integerModule"`
+	ByType              FailuresByType      `json:"byType"`
+	ByDataSize          []ConditionFailures `json:"byDataSize"`
+	ByPixelSize         []ConditionFailures `json:"byPixelSize"`
+	ByContentType       []ConditionFailures `json:"byContentType"`
+	ByErrorCorrection   []ConditionFailures `json:"byErrorCorrection"`
+	FractionalModule    ConditionFailures   `json:"fractionalModule"`
+	IntegerModule       ConditionFailures   `json:"integerModule"`
 }
 
 type SummaryData struct {
@@ -133,14 +147,15 @@ type SummaryData struct {
 }
 
 type TestConfigData struct {
-	Timestamp    string   `json:"timestamp"`
-	DataSizes    []int    `json:"dataSizes"`
-	PixelSizes   []int    `json:"pixelSizes"`
-	ContentTypes []string `json:"contentTypes"`
-	Encoders     []string `json:"encoders"`
-	Decoders     []string `json:"decoders"`
-	TestsPerPair int      `json:"testsPerPair"`
-	TotalTests   int      `json:"totalTests"`
+	Timestamp             string   `json:"timestamp"`
+	DataSizes             []int    `json:"dataSizes"`
+	PixelSizes            []int    `json:"pixelSizes"`
+	ContentTypes          []string `json:"contentTypes"`
+	ErrorCorrectionLevels []string `json:"errorCorrectionLevels"`
+	Encoders              []string `json:"encoders"`
+	Decoders              []string `json:"decoders"`
+	TestsPerPair          int      `json:"testsPerPair"`
+	TotalTests            int      `json:"totalTests"`
 }
 
 func main() {
@@ -233,7 +248,7 @@ func loadAllResults(dir string) ([]RawTestResult, error) {
 	seen := make(map[string]bool)
 	var unique []RawTestResult
 	for _, r := range allResults {
-		key := fmt.Sprintf("%s|%s|%d|%d|%s", r.Encoder, r.Decoder, r.DataSize, r.PixelSize, r.ContentType)
+		key := fmt.Sprintf("%s|%s|%d|%d|%s|%s", r.Encoder, r.Decoder, r.DataSize, r.PixelSize, r.ContentType, r.ErrorCorrectionLevel)
 		if !seen[key] {
 			seen[key] = true
 			unique = append(unique, r)
@@ -281,6 +296,7 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 		capacitySkips int
 		totalEncMs    float64
 		byDecoder     map[string]*struct{ tests, successes, capacitySkips int }
+		byEC          map[string]*struct{ tests, successes, capacitySkips int; totalMs float64 }
 	}
 
 	agg := make(map[string]*encoderAgg)
@@ -289,6 +305,7 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 		if agg[r.Encoder] == nil {
 			agg[r.Encoder] = &encoderAgg{
 				byDecoder: make(map[string]*struct{ tests, successes, capacitySkips int }),
+				byEC:      make(map[string]*struct{ tests, successes, capacitySkips int; totalMs float64 }),
 			}
 		}
 		a := agg[r.Encoder]
@@ -311,6 +328,19 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 		if r.IsCapacityExceeded {
 			a.byDecoder[r.Decoder].capacitySkips++
 		}
+
+		// Track by error correction level
+		if a.byEC[r.ErrorCorrectionLevel] == nil {
+			a.byEC[r.ErrorCorrectionLevel] = &struct{ tests, successes, capacitySkips int; totalMs float64 }{}
+		}
+		a.byEC[r.ErrorCorrectionLevel].tests++
+		a.byEC[r.ErrorCorrectionLevel].totalMs += r.EncodeTimeMs
+		if r.Success {
+			a.byEC[r.ErrorCorrectionLevel].successes++
+		}
+		if r.IsCapacityExceeded {
+			a.byEC[r.ErrorCorrectionLevel].capacitySkips++
+		}
 	}
 
 	var stats []EncoderStats
@@ -331,6 +361,29 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 			}
 		}
 
+		// Compute error correction level breakdown
+		byEC := make(map[string]ECBreakdown)
+		for ecLevel, e := range a.byEC {
+			effectiveTests := e.tests - e.capacitySkips
+			rate := 0.0
+			if effectiveTests > 0 {
+				rate = float64(e.successes) / float64(effectiveTests) * 100
+			}
+			avgMs := 0.0
+			if effectiveTests > 0 {
+				avgMs = e.totalMs / float64(effectiveTests)
+			}
+			byEC[ecLevel] = ECBreakdown{
+				Level:          ecLevel,
+				SuccessRate:    rate,
+				AvgTimeMs:      avgMs,
+				TotalTests:     e.tests,
+				SuccessCount:   e.successes,
+				CapacitySkips:  e.capacitySkips,
+				EffectiveTests: effectiveTests,
+			}
+		}
+
 		effectiveTests := a.totalTests - a.capacitySkips
 		rate := 0.0
 		if effectiveTests > 0 {
@@ -342,14 +395,15 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 		}
 
 		stats = append(stats, EncoderStats{
-			Name:           name,
-			SuccessRate:    rate,
-			AvgEncodeMs:    avgEnc,
-			TotalTests:     a.totalTests,
-			SuccessCount:   a.successes,
-			CapacitySkips:  a.capacitySkips,
-			EffectiveTests: effectiveTests,
-			ByDecoder:      byDec,
+			Name:              name,
+			SuccessRate:       rate,
+			AvgEncodeMs:       avgEnc,
+			TotalTests:        a.totalTests,
+			SuccessCount:      a.successes,
+			CapacitySkips:     a.capacitySkips,
+			EffectiveTests:    effectiveTests,
+			ByDecoder:         byDec,
+			ByErrorCorrection: byEC,
 		})
 	}
 
@@ -368,6 +422,7 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 		capacitySkips int
 		totalDecMs    float64
 		byEncoder     map[string]*struct{ tests, successes, capacitySkips int }
+		byEC          map[string]*struct{ tests, successes, capacitySkips int; totalMs float64 }
 	}
 
 	agg := make(map[string]*decoderAgg)
@@ -376,6 +431,7 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 		if agg[r.Decoder] == nil {
 			agg[r.Decoder] = &decoderAgg{
 				byEncoder: make(map[string]*struct{ tests, successes, capacitySkips int }),
+				byEC:      make(map[string]*struct{ tests, successes, capacitySkips int; totalMs float64 }),
 			}
 		}
 		a := agg[r.Decoder]
@@ -398,6 +454,19 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 		if r.IsCapacityExceeded {
 			a.byEncoder[r.Encoder].capacitySkips++
 		}
+
+		// Track by error correction level
+		if a.byEC[r.ErrorCorrectionLevel] == nil {
+			a.byEC[r.ErrorCorrectionLevel] = &struct{ tests, successes, capacitySkips int; totalMs float64 }{}
+		}
+		a.byEC[r.ErrorCorrectionLevel].tests++
+		a.byEC[r.ErrorCorrectionLevel].totalMs += r.DecodeTimeMs
+		if r.Success {
+			a.byEC[r.ErrorCorrectionLevel].successes++
+		}
+		if r.IsCapacityExceeded {
+			a.byEC[r.ErrorCorrectionLevel].capacitySkips++
+		}
 	}
 
 	var stats []DecoderStats
@@ -418,6 +487,29 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 			}
 		}
 
+		// Compute error correction level breakdown
+		byEC := make(map[string]ECBreakdown)
+		for ecLevel, e := range a.byEC {
+			effectiveTests := e.tests - e.capacitySkips
+			rate := 0.0
+			if effectiveTests > 0 {
+				rate = float64(e.successes) / float64(effectiveTests) * 100
+			}
+			avgMs := 0.0
+			if effectiveTests > 0 {
+				avgMs = e.totalMs / float64(effectiveTests)
+			}
+			byEC[ecLevel] = ECBreakdown{
+				Level:          ecLevel,
+				SuccessRate:    rate,
+				AvgTimeMs:      avgMs,
+				TotalTests:     e.tests,
+				SuccessCount:   e.successes,
+				CapacitySkips:  e.capacitySkips,
+				EffectiveTests: effectiveTests,
+			}
+		}
+
 		effectiveTests := a.totalTests - a.capacitySkips
 		rate := 0.0
 		if effectiveTests > 0 {
@@ -429,14 +521,15 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 		}
 
 		stats = append(stats, DecoderStats{
-			Name:           name,
-			SuccessRate:    rate,
-			AvgDecodeMs:    avgDec,
-			TotalTests:     a.totalTests,
-			SuccessCount:   a.successes,
-			CapacitySkips:  a.capacitySkips,
-			EffectiveTests: effectiveTests,
-			ByEncoder:      byEnc,
+			Name:              name,
+			SuccessRate:       rate,
+			AvgDecodeMs:       avgDec,
+			TotalTests:        a.totalTests,
+			SuccessCount:      a.successes,
+			CapacitySkips:     a.capacitySkips,
+			EffectiveTests:    effectiveTests,
+			ByEncoder:         byEnc,
+			ByErrorCorrection: byEC,
 		})
 	}
 
@@ -532,6 +625,7 @@ func computeFailures(results []RawTestResult) FailuresData {
 	dataSizeAgg := make(map[int]*struct{ failures, total int })
 	pixelSizeAgg := make(map[int]*struct{ failures, total int })
 	contentTypeAgg := make(map[string]*struct{ failures, total int })
+	ecLevelAgg := make(map[string]*struct{ failures, total int })
 	var fractionalFailures, fractionalTotal int
 	var integerFailures, integerTotal int
 
@@ -577,6 +671,15 @@ func computeFailures(results []RawTestResult) FailuresData {
 		contentTypeAgg[r.ContentType].total++
 		if !r.Success {
 			contentTypeAgg[r.ContentType].failures++
+		}
+
+		// By error correction level
+		if ecLevelAgg[r.ErrorCorrectionLevel] == nil {
+			ecLevelAgg[r.ErrorCorrectionLevel] = &struct{ failures, total int }{}
+		}
+		ecLevelAgg[r.ErrorCorrectionLevel].total++
+		if !r.Success {
+			ecLevelAgg[r.ErrorCorrectionLevel].failures++
 		}
 
 		// Fractional vs integer modules
@@ -644,6 +747,23 @@ func computeFailures(results []RawTestResult) FailuresData {
 		return byContentType[i].Rate > byContentType[j].Rate
 	})
 
+	var byErrorCorrection []ConditionFailures
+	for ec, a := range ecLevelAgg {
+		rate := 0.0
+		if a.total > 0 {
+			rate = float64(a.failures) / float64(a.total) * 100
+		}
+		byErrorCorrection = append(byErrorCorrection, ConditionFailures{
+			Condition: fmt.Sprintf("EC Level %s", ec),
+			Failures:  a.failures,
+			Total:     a.total,
+			Rate:      rate,
+		})
+	}
+	sort.Slice(byErrorCorrection, func(i, j int) bool {
+		return byErrorCorrection[i].Rate > byErrorCorrection[j].Rate
+	})
+
 	fractionalRate := 0.0
 	if fractionalTotal > 0 {
 		fractionalRate = float64(fractionalFailures) / float64(fractionalTotal) * 100
@@ -654,10 +774,11 @@ func computeFailures(results []RawTestResult) FailuresData {
 	}
 
 	return FailuresData{
-		ByType:        byType,
-		ByDataSize:    byDataSize,
-		ByPixelSize:   byPixelSize,
-		ByContentType: byContentType,
+		ByType:            byType,
+		ByDataSize:        byDataSize,
+		ByPixelSize:       byPixelSize,
+		ByContentType:     byContentType,
+		ByErrorCorrection: byErrorCorrection,
 		FractionalModule: ConditionFailures{
 			Condition: "Fractional module size",
 			Failures:  fractionalFailures,
@@ -739,6 +860,7 @@ func computeTestConfig(results []RawTestResult, encoders []EncoderStats, decoder
 	dataSizeMap := make(map[int]bool)
 	pixelSizeMap := make(map[int]bool)
 	contentTypeMap := make(map[string]bool)
+	ecLevelMap := make(map[string]bool)
 	encoderMap := make(map[string]bool)
 	decoderMap := make(map[string]bool)
 
@@ -746,6 +868,7 @@ func computeTestConfig(results []RawTestResult, encoders []EncoderStats, decoder
 		dataSizeMap[r.DataSize] = true
 		pixelSizeMap[r.PixelSize] = true
 		contentTypeMap[r.ContentType] = true
+		ecLevelMap[r.ErrorCorrectionLevel] = true
 		encoderMap[r.Encoder] = true
 		decoderMap[r.Decoder] = true
 	}
@@ -769,6 +892,12 @@ func computeTestConfig(results []RawTestResult, encoders []EncoderStats, decoder
 	}
 	sort.Strings(contentTypes)
 
+	var ecLevels []string
+	for ec := range ecLevelMap {
+		ecLevels = append(ecLevels, ec)
+	}
+	sort.Strings(ecLevels)
+
 	var encoderNames []string
 	for name := range encoderMap {
 		encoderNames = append(encoderNames, name)
@@ -788,14 +917,15 @@ func computeTestConfig(results []RawTestResult, encoders []EncoderStats, decoder
 	}
 
 	return TestConfigData{
-		Timestamp:    time.Now().UTC().Format(time.RFC3339),
-		DataSizes:    dataSizes,
-		PixelSizes:   pixelSizes,
-		ContentTypes: contentTypes,
-		Encoders:     encoderNames,
-		Decoders:     decoderNames,
-		TestsPerPair: testsPerPair,
-		TotalTests:   len(results),
+		Timestamp:             time.Now().UTC().Format(time.RFC3339),
+		DataSizes:             dataSizes,
+		PixelSizes:            pixelSizes,
+		ContentTypes:          contentTypes,
+		ErrorCorrectionLevels: ecLevels,
+		Encoders:              encoderNames,
+		Decoders:              decoderNames,
+		TestsPerPair:          testsPerPair,
+		TotalTests:            len(results),
 	}
 }
 

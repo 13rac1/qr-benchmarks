@@ -28,6 +28,13 @@
     <li>{{ . }}</li>
     {{ end }}
   </ul>
+
+  <h3>Error Correction Levels ({{ len .errorCorrectionLevels }})</h3>
+  <ul>
+    {{ range .errorCorrectionLevels }}
+    <li>{{ . }}</li>
+    {{ end }}
+  </ul>
   {{ end }}
 </div>
 

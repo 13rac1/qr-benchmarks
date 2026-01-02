@@ -8,7 +8,7 @@ import (
 func TestGeneratePixelSizeMatrix(t *testing.T) {
 	cases := GeneratePixelSizeMatrix()
 
-	// Verify total count: 4 data sizes × 6 pixel sizes × 4 content types = 96
+	// Verify total count: 4 data sizes × 6 pixel sizes × 2 content types × 2 EC levels = 96
 	expectedCount := 96
 	if len(cases) != expectedCount {
 		t.Errorf("GeneratePixelSizeMatrix() returned %d cases, expected %d",
@@ -18,11 +18,13 @@ func TestGeneratePixelSizeMatrix(t *testing.T) {
 	// Expected data and pixel sizes
 	expectedDataSizes := []int{100, 300, 500, 750}
 	expectedPixelSizes := []int{264, 270, 360, 392, 445, 462}
-	expectedContentTypes := []ContentType{ContentNumeric, ContentAlphanumeric, ContentBinary, ContentUTF8}
+	expectedContentTypes := []ContentType{ContentAlphanumeric, ContentUTF8}
+	expectedECLevels := []string{"L", "H"}
 
 	// Verify all combinations are present
 	combinations := make(map[string]bool)
 	contentTypeCounts := make(map[ContentType]int)
+	ecCounts := make(map[string]int)
 
 	for _, tc := range cases {
 		// Verify data size matches actual data length
@@ -31,31 +33,48 @@ func TestGeneratePixelSizeMatrix(t *testing.T) {
 				tc.Name, tc.DataSize, len(tc.Data))
 		}
 
+		// Verify EC level is set
+		if tc.ErrorCorrectionLevel == "" {
+			t.Errorf("test case %q missing ErrorCorrectionLevel", tc.Name)
+		}
+
 		// Track this combination
-		key := formatInt(tc.DataSize) + ":" + formatInt(tc.PixelSize) + ":" + formatInt(int(tc.ContentType))
+		key := formatInt(tc.DataSize) + ":" + formatInt(tc.PixelSize) + ":" + formatInt(int(tc.ContentType)) + ":" + tc.ErrorCorrectionLevel
 		combinations[key] = true
 		contentTypeCounts[tc.ContentType]++
+		ecCounts[tc.ErrorCorrectionLevel]++
 	}
 
 	// Verify all expected combinations are present
 	for _, dataSize := range expectedDataSizes {
 		for _, pixelSize := range expectedPixelSizes {
 			for _, contentType := range expectedContentTypes {
-				key := formatInt(dataSize) + ":" + formatInt(pixelSize) + ":" + formatInt(int(contentType))
-				if !combinations[key] {
-					t.Errorf("missing combination: data size %d, pixel size %d, content type %d",
-						dataSize, pixelSize, contentType)
+				for _, ecLevel := range expectedECLevels {
+					key := formatInt(dataSize) + ":" + formatInt(pixelSize) + ":" + formatInt(int(contentType)) + ":" + ecLevel
+					if !combinations[key] {
+						t.Errorf("missing combination: data size %d, pixel size %d, content type %d, EC %s",
+							dataSize, pixelSize, contentType, ecLevel)
+					}
 				}
 			}
 		}
 	}
 
-	// Verify content type distribution
-	expectedPerType := 24 // 96 tests / 4 content types
+	// Verify content type distribution: 96 tests / 2 content types = 48 per type
+	expectedPerType := 48
 	for _, contentType := range expectedContentTypes {
 		if contentTypeCounts[contentType] != expectedPerType {
 			t.Errorf("content type %d has %d tests, expected %d",
 				contentType, contentTypeCounts[contentType], expectedPerType)
+		}
+	}
+
+	// Verify EC level distribution: 96 tests / 2 EC levels = 48 per level
+	expectedPerEC := 48
+	for _, ecLevel := range expectedECLevels {
+		if ecCounts[ecLevel] != expectedPerEC {
+			t.Errorf("EC level %s has %d tests, expected %d",
+				ecLevel, ecCounts[ecLevel], expectedPerEC)
 		}
 	}
 }
@@ -81,21 +100,27 @@ func TestGenerateEdgeCases(t *testing.T) {
 	}
 
 	// Verify empty case
-	if tc, ok := caseMap["empty"]; ok {
+	if tc, ok := caseMap["empty-ecM"]; ok {
 		if len(tc.Data) != 0 {
 			t.Errorf("empty case has %d bytes, expected 0", len(tc.Data))
 		}
+		if tc.ErrorCorrectionLevel != "M" {
+			t.Errorf("empty case has EC level %q, expected M", tc.ErrorCorrectionLevel)
+		}
 	} else {
-		t.Error("missing 'empty' edge case")
+		t.Error("missing 'empty-ecM' edge case")
 	}
 
 	// Verify single byte case
-	if tc, ok := caseMap["single-byte"]; ok {
+	if tc, ok := caseMap["single-byte-ecM"]; ok {
 		if len(tc.Data) != 1 {
 			t.Errorf("single-byte case has %d bytes, expected 1", len(tc.Data))
 		}
+		if tc.ErrorCorrectionLevel != "M" {
+			t.Errorf("single-byte case has EC level %q, expected M", tc.ErrorCorrectionLevel)
+		}
 	} else {
-		t.Error("missing 'single-byte' edge case")
+		t.Error("missing 'single-byte-ecM' edge case")
 	}
 
 	// Verify UTF-8 cases exist

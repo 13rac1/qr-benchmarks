@@ -36,6 +36,8 @@
 
 {{ range $e := .Site.Data.encoders }}
 <h3><a href="https://github.com/{{ .name }}" target="_blank" rel="noopener noreferrer">{{ .name }}</a></h3>
+
+<h4>By Decoder</h4>
 <table>
   <thead>
     <tr>
@@ -54,6 +56,34 @@
         {{ printf "%.1f%%" $stats.successRate }}
       </td>
       <td>{{ $stats.successes }}</td>
+      <td>{{ $stats.effectiveTests }}</td>
+      <td>{{ $stats.capacitySkips }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+
+<h4>By Error Correction Level</h4>
+<table>
+  <thead>
+    <tr>
+      <th>EC Level</th>
+      <th>Success Rate</th>
+      <th>Avg Encode Time</th>
+      <th>Successes</th>
+      <th>Tests</th>
+      <th>Skips</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $ec, $stats := .byErrorCorrection }}
+    <tr>
+      <td><strong>{{ $stats.level }}</strong></td>
+      <td class="{{ if ge $stats.successRate 95.0 }}rate-high{{ else if ge $stats.successRate 80.0 }}rate-medium{{ else }}rate-low{{ end }}">
+        {{ printf "%.1f%%" $stats.successRate }}
+      </td>
+      <td>{{ printf "%.2fms" $stats.avgTimeMs }}</td>
+      <td>{{ $stats.successCount }}</td>
       <td>{{ $stats.effectiveTests }}</td>
       <td>{{ $stats.capacitySkips }}</td>
     </tr>

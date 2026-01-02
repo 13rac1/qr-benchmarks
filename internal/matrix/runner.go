@@ -105,19 +105,36 @@ func (r *Runner) RunAll() (*CompatibilityMatrix, error) {
 // runTest executes a single encode→decode→validate cycle.
 // Returns a TestResult capturing timing, success status, and module information.
 func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec decoders.Decoder) TestResult {
+	// Map test case error correction level to encoder constant
+	var ecLevel string
+	switch testCase.ErrorCorrectionLevel {
+	case "L":
+		ecLevel = encoders.ErrorCorrectionL
+	case "M":
+		ecLevel = encoders.ErrorCorrectionM
+	case "Q":
+		ecLevel = encoders.ErrorCorrectionQ
+	case "H":
+		ecLevel = encoders.ErrorCorrectionH
+	default:
+		// Fallback to Medium if not specified or invalid
+		ecLevel = encoders.ErrorCorrectionM
+	}
+
 	result := TestResult{
-		EncoderName: enc.Name(),
-		DecoderName: dec.Name(),
-		DataSize:    testCase.DataSize,
-		PixelSize:   testCase.PixelSize,
-		ContentType: contentTypeToString(testCase.ContentType),
-		QRVersion:   -1, // Will be updated if version detection succeeds
-		ModuleCount: 0,  // Will be updated if version detection succeeds
+		EncoderName:          enc.Name(),
+		DecoderName:          dec.Name(),
+		DataSize:             testCase.DataSize,
+		PixelSize:            testCase.PixelSize,
+		ContentType:          contentTypeToString(testCase.ContentType),
+		ErrorCorrectionLevel: testCase.ErrorCorrectionLevel,
+		QRVersion:            -1, // Will be updated if version detection succeeds
+		ModuleCount:          0,  // Will be updated if version detection succeeds
 	}
 
 	// Encode QR code with timing
 	encodeOpts := encoders.EncodeOptions{
-		ErrorCorrectionLevel: encoders.ErrorCorrectionM,
+		ErrorCorrectionLevel: ecLevel,
 		PixelSize:            testCase.PixelSize,
 	}
 
@@ -211,12 +228,13 @@ func (r *Runner) printProgress(testNum, totalTests int, testCase testdata.TestCa
 	contentLabel := contentTypeToString(testCase.ContentType)
 
 	// Print test result
-	fmt.Printf("[%d/%d] %s%s%s %s %d bytes @ %dpx (%s+%s) - %.1fms encode, %.1fms decode\n",
+	fmt.Printf("[%d/%d] %s%s%s %s %d bytes @ %dpx EC:%s (%s+%s) - %.1fms encode, %.1fms decode\n",
 		testNum, totalTests,
 		statusColor, status, reset,
 		contentLabel,
 		testCase.DataSize,
 		testCase.PixelSize,
+		testCase.ErrorCorrectionLevel,
 		enc.Name(),
 		dec.Name(),
 		float64(result.EncodeTime.Microseconds())/1000.0,

@@ -66,6 +66,12 @@ type TestResult struct {
 	// Used for analyzing encoding mode correlation with decoder behavior.
 	ContentType string
 
+	// ErrorCorrectionLevel specifies the QR error correction level used.
+	// Valid values: "L" (Low ~7%), "M" (Medium ~15%), "Q" (Quartile ~25%), "H" (High ~30%).
+	// Higher EC levels provide more redundancy but reduce data capacity.
+	// Affects QR version selection for a given data size.
+	ErrorCorrectionLevel string
+
 	// QRVersion is the QR code version number (1-40).
 	// Determined by data size and error correction level.
 	// Version determines module count: moduleCount = 17 + 4*version.

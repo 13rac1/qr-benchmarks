@@ -13,18 +13,19 @@ func ExampleGeneratePixelSizeMatrix() {
 	fmt.Printf("Generated %d test cases\n", len(cases))
 	fmt.Printf("\nFirst few test cases:\n")
 
-	for i := 0; i < 3 && i < len(cases); i++ {
+	for i := 0; i < 4 && i < len(cases); i++ {
 		tc := cases[i]
-		fmt.Printf("  %s: %d bytes at %dpx\n", tc.Name, tc.DataSize, tc.PixelSize)
+		fmt.Printf("  %s: %d bytes at %dpx EC%s\n", tc.Name, tc.DataSize, tc.PixelSize, tc.ErrorCorrectionLevel)
 	}
 
 	// Output:
 	// Generated 96 test cases
 	//
 	// First few test cases:
-	//   numeric-100b-264px: 100 bytes at 264px
-	//   alphanumeric-100b-264px: 100 bytes at 264px
-	//   binary-100b-264px: 100 bytes at 264px
+	//   alphanumeric-100b-264px-ecL: 100 bytes at 264px ECL
+	//   alphanumeric-100b-264px-ecH: 100 bytes at 264px ECH
+	//   utf8-100b-264px-ecL: 100 bytes at 264px ECL
+	//   utf8-100b-264px-ecH: 100 bytes at 264px ECH
 }
 
 // TestModuleCalculationExample demonstrates module size calculations

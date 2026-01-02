@@ -27,21 +27,22 @@ func NewJSONReporter(outputDir string) *JSONReporter {
 
 // RawTestResult represents a single test result in simplified form.
 type RawTestResult struct {
-	Encoder            string  `json:"encoder"`
-	Decoder            string  `json:"decoder"`
-	DataSize           int     `json:"dataSize"`
-	PixelSize          int     `json:"pixelSize"`
-	ContentType        string  `json:"contentType"`
-	Success            bool    `json:"success"`
-	ErrorType          string  `json:"errorType,omitempty"` // "encode", "decode", "dataMismatch"
-	ErrorMsg           string  `json:"errorMsg,omitempty"`
-	IsCapacityExceeded bool    `json:"isCapacityExceeded,omitempty"`
-	EncodeTimeMs       float64 `json:"encodeTimeMs"`
-	DecodeTimeMs       float64 `json:"decodeTimeMs"`
-	QRVersion          int     `json:"qrVersion,omitempty"`
-	ModuleCount        int     `json:"moduleCount,omitempty"`
-	ModulePixelSize    float64 `json:"modulePixelSize,omitempty"`
-	IsFractionalModule bool    `json:"isFractionalModule"`
+	Encoder              string  `json:"encoder"`
+	Decoder              string  `json:"decoder"`
+	DataSize             int     `json:"dataSize"`
+	PixelSize            int     `json:"pixelSize"`
+	ContentType          string  `json:"contentType"`
+	ErrorCorrectionLevel string  `json:"errorCorrectionLevel"` // "L", "M", "Q", or "H"
+	Success              bool    `json:"success"`
+	ErrorType            string  `json:"errorType,omitempty"` // "encode", "decode", "dataMismatch"
+	ErrorMsg             string  `json:"errorMsg,omitempty"`
+	IsCapacityExceeded   bool    `json:"isCapacityExceeded,omitempty"`
+	EncodeTimeMs         float64 `json:"encodeTimeMs"`
+	DecodeTimeMs         float64 `json:"decodeTimeMs"`
+	QRVersion            int     `json:"qrVersion,omitempty"`
+	ModuleCount          int     `json:"moduleCount,omitempty"`
+	ModulePixelSize      float64 `json:"modulePixelSize,omitempty"`
+	IsFractionalModule   bool    `json:"isFractionalModule"`
 }
 
 // RawResults contains all test results with metadata.
@@ -121,19 +122,20 @@ func (r *JSONReporter) generateDecoderFiles(m *matrix.CompatibilityMatrix) error
 // convertResult converts a matrix.TestResult to RawTestResult.
 func convertResult(result matrix.TestResult) RawTestResult {
 	raw := RawTestResult{
-		Encoder:            result.EncoderName,
-		Decoder:            result.DecoderName,
-		DataSize:           result.DataSize,
-		PixelSize:          result.PixelSize,
-		ContentType:        result.ContentType,
-		Success:            result.Error == nil,
-		IsCapacityExceeded: result.IsCapacityExceeded,
-		EncodeTimeMs:       toMilliseconds(result.EncodeTime),
-		DecodeTimeMs:       toMilliseconds(result.DecodeTime),
-		QRVersion:          result.QRVersion,
-		ModuleCount:        result.ModuleCount,
-		ModulePixelSize:    result.ModulePixelSize,
-		IsFractionalModule: result.IsFractionalModule,
+		Encoder:              result.EncoderName,
+		Decoder:              result.DecoderName,
+		DataSize:             result.DataSize,
+		PixelSize:            result.PixelSize,
+		ContentType:          result.ContentType,
+		ErrorCorrectionLevel: result.ErrorCorrectionLevel,
+		Success:              result.Error == nil,
+		IsCapacityExceeded:   result.IsCapacityExceeded,
+		EncodeTimeMs:         toMilliseconds(result.EncodeTime),
+		DecodeTimeMs:         toMilliseconds(result.DecodeTime),
+		QRVersion:            result.QRVersion,
+		ModuleCount:          result.ModuleCount,
+		ModulePixelSize:      result.ModulePixelSize,
+		IsFractionalModule:   result.IsFractionalModule,
 	}
 
 	if result.Error != nil {

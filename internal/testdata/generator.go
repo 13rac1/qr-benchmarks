@@ -49,17 +49,23 @@ type TestCase struct {
 
 	// ContentType identifies the character set used in Data.
 	ContentType ContentType
+
+	// ErrorCorrectionLevel specifies the QR error correction level.
+	// Valid values: "L" (Low ~7%), "M" (Medium ~15%), "Q" (Quartile ~25%), "H" (High ~30%).
+	// This affects QR version selection and capacity.
+	ErrorCorrectionLevel string
 }
 
 // GeneratePixelSizeMatrix generates the primary test matrix for pixel size testing.
 // This is the core test set for testing fractional module sizing issues across
-// all content types and a balanced range of QR versions.
+// focused content types and error correction levels.
 //
 // Matrix dimensions:
 //   - Data sizes: [100, 300, 500, 750] bytes (4 sizes → QR versions 3, 7, 10, 14)
-//   - Pixel sizes: [256, 320, 400, 440, 480, 512] pixels (6 sizes)
-//   - Content types: All 4 types (numeric, alphanumeric, binary, UTF-8)
-//   - Total: 4 × 6 × 4 = 96 test cases
+//   - Pixel sizes: [264, 270, 360, 392, 445, 462] pixels (6 sizes)
+//   - Content types: 2 types (alphanumeric, UTF-8) for focused testing
+//   - Error correction: 2 levels (L, H) to test low and high EC behavior
+//   - Total: 4 × 6 × 2 × 2 = 96 test cases
 //
 // Data sizes are carefully chosen to trigger specific QR versions:
 //   - 100 bytes → version 3 (29 modules)
@@ -69,16 +75,19 @@ type TestCase struct {
 //
 // Pixel sizes are chosen for a balanced mix of fractional and integer modules:
 //   - 264: Integer for v3 (264/33 = 8.0)
-//   - 330: Integer for v3 (330/33 = 10.0)
+//   - 270: Integer for v6 (270/45 = 6.0)
+//   - 360: Integer for v6 (360/45 = 8.0)
 //   - 392: Integer for v7 (392/49 = 8.0)
-//   - 427: Integer for v10 (427/61 = 7.0)
-//   - 440: Fractional for most versions
+//   - 445: Integer for v17 (445/89 = 5.0)
 //   - 462: Integer for v3 (462/33 = 14.0) and v14 (462/77 = 6.0)
 //
-// Expected fractional/integer split:
-//   - 5 of 6 pixel sizes are integer multiples of common module counts
-//   - Different content types produce different versions, affecting distribution
-//   - Target: ~30-50% integer module sizes
+// Content types:
+//   - Alphanumeric: Medium efficiency (5.5 bits/char), tests encoding mode handling
+//   - UTF-8: Forces byte mode, represents real-world international data
+//
+// Error correction levels:
+//   - L (Low ~7%): Minimal redundancy, maximum capacity
+//   - H (High ~30%): Maximum redundancy, tests error correction impact
 //
 // The data is deterministic (uses repeating patterns) for reproducible testing.
 func GeneratePixelSizeMatrix() []TestCase {
@@ -86,54 +95,47 @@ func GeneratePixelSizeMatrix() []TestCase {
 	dataSizes := []int{100, 300, 500, 750}
 
 	// Pixel sizes chosen for balanced mix of fractional and integer modules
-	// Covers multiple QR versions produced by different encoders:
-	// 264: v3 (33×8) - skip2/yeqown numeric
-	// 270: v6 (45×6) - boombuler all types
-	// 360: v6 (45×8) - boombuler all types
-	// 392: v7 (49×8) - skip2 alphanumeric
-	// 445: v17 (89×5) - boombuler large data
-	// 462: v3 (33×14), v14 (77×6) - skip2 numeric, large versions
-	// Note: Different encoders produce different QR versions for the same data
 	pixelSizes := []int{264, 270, 360, 392, 445, 462}
 
-	// All four content types for comprehensive coverage
+	// Focused content types: alphanumeric and UTF-8
 	contentTypes := []ContentType{
-		ContentNumeric,
 		ContentAlphanumeric,
-		ContentBinary,
 		ContentUTF8,
 	}
 
-	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes)*len(contentTypes))
+	// Test low and high error correction levels
+	errorLevels := []string{"L", "H"}
+
+	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes)*len(contentTypes)*len(errorLevels))
 
 	for _, dataSize := range dataSizes {
 		for _, pixelSize := range pixelSizes {
 			for _, contentType := range contentTypes {
-				var data []byte
-				var name string
+				for _, ecLevel := range errorLevels {
+					var data []byte
+					var contentTypeStr string
 
-				switch contentType {
-				case ContentNumeric:
-					data = generateNumeric(dataSize)
-					name = formatTestName("numeric", dataSize, pixelSize)
-				case ContentAlphanumeric:
-					data = generateAlphanumeric(dataSize)
-					name = formatTestName("alphanumeric", dataSize, pixelSize)
-				case ContentBinary:
-					data = generateBinary(dataSize)
-					name = formatTestName("binary", dataSize, pixelSize)
-				case ContentUTF8:
-					data = generateUTF8(dataSize)
-					name = formatTestName("utf8", dataSize, pixelSize)
+					switch contentType {
+					case ContentAlphanumeric:
+						data = generateAlphanumeric(dataSize)
+						contentTypeStr = "alphanumeric"
+					case ContentUTF8:
+						data = generateUTF8(dataSize)
+						contentTypeStr = "utf8"
+					}
+
+					// Include EC level in test name
+					name := formatTestNameWithEC(contentTypeStr, dataSize, pixelSize, ecLevel)
+
+					cases = append(cases, TestCase{
+						Name:                 name,
+						Data:                 data,
+						DataSize:             dataSize,
+						PixelSize:            pixelSize,
+						ContentType:          contentType,
+						ErrorCorrectionLevel: ecLevel,
+					})
 				}
-
-				cases = append(cases, TestCase{
-					Name:        name,
-					Data:        data,
-					DataSize:    dataSize,
-					PixelSize:   pixelSize,
-					ContentType: contentType,
-				})
 			}
 		}
 	}
@@ -146,54 +148,60 @@ func GeneratePixelSizeMatrix() []TestCase {
 // the best encoder/decoder combinations across all scenarios.
 //
 // Matrix dimensions:
-//   - Data sizes: 12 sizes from 10 to 2500 bytes (covers QR versions 1-32)
-//   - Pixel sizes: 12 sizes from 128 to 1024 pixels (covers tiny to high-res)
+//   - Data sizes: 9 sizes from 10 to 2500 bytes (covers QR versions 1-32)
+//   - Pixel sizes: 11 sizes from 128 to 1024 pixels (covers tiny to high-res)
 //   - Content types: All 4 types (numeric, alphanumeric, binary, UTF-8)
-//   - Total: 12 × 12 × 4 = 576 test cases per encoder/decoder pair
+//   - Error correction: 3 levels (L, M, H) for complete EC coverage
+//   - Total: 9 × 11 × 4 × 3 = 1,188 test cases per encoder/decoder pair
 //
 // Data size progression:
 //   - Tiny: 10, 25, 50 bytes (QR versions 1-2)
-//   - Small: 100, 200, 300 bytes (QR versions 3-6)
-//   - Medium: 500, 700, 1000 bytes (QR versions 10-15)
-//   - Large: 1500, 2000, 2500 bytes (QR versions 20-32)
+//   - Small: 100, 300 bytes (QR versions 3-7)
+//   - Medium: 500, 1000 bytes (QR versions 10-15)
+//   - Large: 2000, 2500 bytes (QR versions 25-32)
 //
 // Pixel size progression:
-//   - Minimal: 128, 200, 256 (edge cases, likely failures)
-//   - Small: 320, 400 (mobile low-end)
-//   - Medium: 450, 480, 512 (fractional module boundaries)
-//   - Standard: 600, 720 (common sizes)
-//   - Large: 800, 1024 (high resolution, always works)
+//   - Minimal: 128, 200 (edge cases, likely failures for larger versions)
+//   - Small: 264, 270 (integer for common versions)
+//   - Medium: 360, 392, 445, 480, 512 (mix of integer/fractional)
+//   - Standard: 720 (common size)
+//   - Large: 1024 (high resolution, safe for all versions)
 //
 // Content types tested:
 //   - Numeric: Most efficient QR encoding (3.3 bits/char)
-//   - Alphanumeric: Medium efficiency (5.5 bits/char), tuotoo padding issue
+//   - Alphanumeric: Medium efficiency (5.5 bits/char)
 //   - Binary: Random bytes (8 bits/byte)
 //   - UTF-8: Real-world text forcing byte mode
+//
+// Error correction levels:
+//   - L (Low ~7%): Minimal redundancy, maximum capacity
+//   - M (Medium ~15%): Balanced redundancy and capacity
+//   - H (High ~30%): Maximum redundancy, tests high EC impact
 //
 // This comprehensive test helps identify:
 //   - Minimum viable pixel sizes for each data size
 //   - Optimal encoder/decoder combinations
 //   - Data type encoding mode issues
 //   - Fractional module size boundaries
-//   - Maximum capacity limits
+//   - Error correction level impact on version selection
+//   - Maximum capacity limits across EC levels
 func GenerateComprehensiveMatrix() []TestCase {
-	// Comprehensive data size progression (12 sizes covering QR versions 1-32)
+	// Comprehensive data size progression (9 sizes covering QR versions 1-32)
+	// Removed 200, 700, 1500 per requirements
 	dataSizes := []int{
 		10,    // Tiny - QR version 1
 		25,    // Tiny - QR version 1
 		50,    // Small - QR version 2
 		100,   // Small - QR version 3
-		200,   // Small - QR version 5
 		300,   // Medium-small - QR version 6-7
 		500,   // Medium - QR version 10
-		700,   // Medium - QR version 12
 		1000,  // Medium-large - QR version 15
-		1500,  // Large - QR version 20
 		2000,  // Large - QR version 25
 		2500,  // Very large - QR version 32 (near max at medium EC)
 	}
 
-	// Comprehensive pixel size progression (12 sizes from minimal to high-res)
+	// Comprehensive pixel size progression (11 sizes from minimal to high-res)
+	// Removed 600 per requirements
 	// Includes mix of integer-producing and fractional sizes for comprehensive testing
 	pixelSizes := []int{
 		128,  // Minimal - will fail for larger QR versions
@@ -205,55 +213,59 @@ func GenerateComprehensiveMatrix() []TestCase {
 		445,  // Medium - integer for v17 (boombuler large)
 		480,  // Medium - fractional for most versions
 		512,  // Medium - power of 2, fractional for most
-		600,  // Standard - common size, fractional
 		720,  // Standard - 720p derivative, fractional
 		1024, // Large - power of 2, safe for all versions
 	}
 
-	// Pre-allocate for all combinations: 12 sizes × 12 pixels × 4 content types
-	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes)*4)
+	// All four content types for comprehensive coverage
+	contentTypes := []ContentType{
+		ContentNumeric,
+		ContentAlphanumeric,
+		ContentBinary,
+		ContentUTF8,
+	}
+
+	// Test low, medium, and high error correction levels
+	errorLevels := []string{"L", "M", "H"}
+
+	// Pre-allocate for all combinations: 9 sizes × 11 pixels × 4 content types × 3 EC levels
+	cases := make([]TestCase, 0, len(dataSizes)*len(pixelSizes)*len(contentTypes)*len(errorLevels))
 
 	for _, dataSize := range dataSizes {
 		for _, pixelSize := range pixelSizes {
-			// Test 1: Numeric data (most efficient encoding)
-			numericData := generateNumeric(dataSize)
-			cases = append(cases, TestCase{
-				Name:        formatTestName("numeric", dataSize, pixelSize),
-				Data:        numericData,
-				DataSize:    dataSize,
-				PixelSize:   pixelSize,
-				ContentType: ContentNumeric,
-			})
+			for _, contentType := range contentTypes {
+				for _, ecLevel := range errorLevels {
+					var data []byte
+					var contentTypeStr string
 
-			// Test 2: Alphanumeric data (medium efficiency, tuotoo padding issue)
-			alphaData := generateAlphanumeric(dataSize)
-			cases = append(cases, TestCase{
-				Name:        formatTestName("alphanumeric", dataSize, pixelSize),
-				Data:        alphaData,
-				DataSize:    dataSize,
-				PixelSize:   pixelSize,
-				ContentType: ContentAlphanumeric,
-			})
+					switch contentType {
+					case ContentNumeric:
+						data = generateNumeric(dataSize)
+						contentTypeStr = "numeric"
+					case ContentAlphanumeric:
+						data = generateAlphanumeric(dataSize)
+						contentTypeStr = "alphanumeric"
+					case ContentBinary:
+						data = generateBinary(dataSize)
+						contentTypeStr = "binary"
+					case ContentUTF8:
+						data = generateUTF8(dataSize)
+						contentTypeStr = "utf8"
+					}
 
-			// Test 3: Binary data (random bytes, 8 bits per byte)
-			binaryData := generateBinary(dataSize)
-			cases = append(cases, TestCase{
-				Name:        formatTestName("binary", dataSize, pixelSize),
-				Data:        binaryData,
-				DataSize:    dataSize,
-				PixelSize:   pixelSize,
-				ContentType: ContentBinary,
-			})
+					// Include EC level in test name
+					name := formatTestNameWithEC(contentTypeStr, dataSize, pixelSize, ecLevel)
 
-			// Test 4: UTF-8 data (forces byte mode, real-world text)
-			utf8Data := generateUTF8(dataSize)
-			cases = append(cases, TestCase{
-				Name:        formatTestName("utf8", dataSize, pixelSize),
-				Data:        utf8Data,
-				DataSize:    dataSize,
-				PixelSize:   pixelSize,
-				ContentType: ContentUTF8,
-			})
+					cases = append(cases, TestCase{
+						Name:                 name,
+						Data:                 data,
+						DataSize:             dataSize,
+						PixelSize:            pixelSize,
+						ContentType:          contentType,
+						ErrorCorrectionLevel: ecLevel,
+					})
+				}
+			}
 		}
 	}
 
@@ -270,68 +282,79 @@ func GenerateComprehensiveMatrix() []TestCase {
 //   - UTF-8 multilingual text (internationalization)
 //   - UTF-8 with emoji (complex Unicode)
 //
-// These tests use a single pixel size (480px) as they focus on content variation
-// rather than pixel size variation.
+// These tests use a single pixel size (480px) and Medium error correction (M)
+// as they focus on content variation rather than pixel size or EC variation.
 func GenerateEdgeCases() []TestCase {
 	// Standard pixel size for edge case testing
 	pixelSize := 480
 
+	// Use Medium error correction for all edge cases
+	ecLevel := "M"
+
 	return []TestCase{
 		{
-			Name:        "empty",
-			Data:        []byte{},
-			DataSize:    0,
-			PixelSize:   pixelSize,
-			ContentType: ContentBinary,
+			Name:                 "empty-ecM",
+			Data:                 []byte{},
+			DataSize:             0,
+			PixelSize:            pixelSize,
+			ContentType:          ContentBinary,
+			ErrorCorrectionLevel: ecLevel,
 		},
 		{
-			Name:        "single-byte",
-			Data:        []byte{0x42},
-			DataSize:    1,
-			PixelSize:   pixelSize,
-			ContentType: ContentBinary,
+			Name:                 "single-byte-ecM",
+			Data:                 []byte{0x42},
+			DataSize:             1,
+			PixelSize:            pixelSize,
+			ContentType:          ContentBinary,
+			ErrorCorrectionLevel: ecLevel,
 		},
 		{
-			Name:        "numeric-small",
-			Data:        generateNumeric(50),
-			DataSize:    50,
-			PixelSize:   pixelSize,
-			ContentType: ContentNumeric,
+			Name:                 "numeric-small-ecM",
+			Data:                 generateNumeric(50),
+			DataSize:             50,
+			PixelSize:            pixelSize,
+			ContentType:          ContentNumeric,
+			ErrorCorrectionLevel: ecLevel,
 		},
 		{
-			Name:        "numeric-large",
-			Data:        generateNumeric(500),
-			DataSize:    500,
-			PixelSize:   pixelSize,
-			ContentType: ContentNumeric,
+			Name:                 "numeric-large-ecM",
+			Data:                 generateNumeric(500),
+			DataSize:             500,
+			PixelSize:            pixelSize,
+			ContentType:          ContentNumeric,
+			ErrorCorrectionLevel: ecLevel,
 		},
 		{
-			Name:        "alphanumeric-url",
-			Data:        generateAlphanumeric(50),
-			DataSize:    50,
-			PixelSize:   pixelSize,
-			ContentType: ContentAlphanumeric,
+			Name:                 "alphanumeric-url-ecM",
+			Data:                 generateAlphanumeric(50),
+			DataSize:             50,
+			PixelSize:            pixelSize,
+			ContentType:          ContentAlphanumeric,
+			ErrorCorrectionLevel: ecLevel,
 		},
 		{
-			Name:        "alphanumeric-large",
-			Data:        generateAlphanumeric(1000),
-			DataSize:    1000,
-			PixelSize:   pixelSize,
-			ContentType: ContentAlphanumeric,
+			Name:                 "alphanumeric-large-ecM",
+			Data:                 generateAlphanumeric(1000),
+			DataSize:             1000,
+			PixelSize:            pixelSize,
+			ContentType:          ContentAlphanumeric,
+			ErrorCorrectionLevel: ecLevel,
 		},
 		{
-			Name:        "utf8-multilingual",
-			Data:        utf8Bytes("Hello World 你好世界 Привет мир こんにちは世界"),
-			DataSize:    len(utf8Bytes("Hello World 你好世界 Привет мир こんにちは世界")),
-			PixelSize:   pixelSize,
-			ContentType: ContentUTF8,
+			Name:                 "utf8-multilingual-ecM",
+			Data:                 utf8Bytes("Hello World 你好世界 Привет мир こんにちは世界"),
+			DataSize:             len(utf8Bytes("Hello World 你好世界 Привет мир こんにちは世界")),
+			PixelSize:            pixelSize,
+			ContentType:          ContentUTF8,
+			ErrorCorrectionLevel: ecLevel,
 		},
 		{
-			Name:        "utf8-emoji",
-			Data:        utf8Bytes("QR Code Testing 🔍📱✅❌🎉"),
-			DataSize:    len(utf8Bytes("QR Code Testing 🔍📱✅❌🎉")),
-			PixelSize:   pixelSize,
-			ContentType: ContentUTF8,
+			Name:                 "utf8-emoji-ecM",
+			Data:                 utf8Bytes("QR Code Testing 🔍📱✅❌🎉"),
+			DataSize:             len(utf8Bytes("QR Code Testing 🔍📱✅❌🎉")),
+			PixelSize:            pixelSize,
+			ContentType:          ContentUTF8,
+			ErrorCorrectionLevel: ecLevel,
 		},
 	}
 }
@@ -461,6 +484,25 @@ func formatTestName(contentType string, dataSize, pixelSize int) string {
 	sb.WriteString("b-")
 	sb.WriteString(formatInt(pixelSize))
 	sb.WriteString("px")
+	return sb.String()
+}
+
+// formatTestNameWithEC creates a test case identifier including error correction level.
+// Format: "content-type-NNNb-NNNpx-ecX"
+//
+// Examples:
+//   - "alphanumeric-500b-440px-ecL"
+//   - "utf8-100b-512px-ecH"
+//   - "binary-750b-480px-ecM"
+func formatTestNameWithEC(contentType string, dataSize, pixelSize int, ecLevel string) string {
+	var sb strings.Builder
+	sb.WriteString(contentType)
+	sb.WriteString("-")
+	sb.WriteString(formatInt(dataSize))
+	sb.WriteString("b-")
+	sb.WriteString(formatInt(pixelSize))
+	sb.WriteString("px-ec")
+	sb.WriteString(ecLevel)
 	return sb.String()
 }
 
