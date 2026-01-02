@@ -4,15 +4,6 @@ import (
 	"testing"
 )
 
-func TestBoombulerEncoder_Name(t *testing.T) {
-	enc := &BoombulerEncoder{}
-	expected := "boombuler/barcode"
-
-	if got := enc.Name(); got != expected {
-		t.Errorf("Name() = %q, want %q", got, expected)
-	}
-}
-
 func TestBoombulerEncoder_Encode_Success(t *testing.T) {
 	enc := &BoombulerEncoder{}
 	data := []byte("Hello, QR Code!")

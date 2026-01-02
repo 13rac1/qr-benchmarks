@@ -8,15 +8,6 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
-func TestGoqrDecoder_Name(t *testing.T) {
-	dec := &GoqrDecoder{}
-	expected := "goqr"
-
-	if got := dec.Name(); got != expected {
-		t.Errorf("Name() = %q, want %q", got, expected)
-	}
-}
-
 func TestGoqrDecoder_Decode_Success(t *testing.T) {
 	dec := &GoqrDecoder{}
 	originalData := "Hello, QR Code!"

@@ -16,7 +16,7 @@ type GozxingDecoder struct{}
 
 // Name returns the decoder identifier.
 func (d *GozxingDecoder) Name() string {
-	return "gozxing"
+	return "makiuchi-d/gozxing"
 }
 
 // Decode extracts data from a QR code image.

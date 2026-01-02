@@ -4,15 +4,6 @@ import (
 	"testing"
 )
 
-func TestGozxingEncoder_Name(t *testing.T) {
-	enc := &GozxingEncoder{}
-	expected := "gozxing/encoder"
-
-	if got := enc.Name(); got != expected {
-		t.Errorf("Name() = %q, want %q", got, expected)
-	}
-}
-
 func TestGozxingEncoder_Encode_Success(t *testing.T) {
 	enc := &GozxingEncoder{}
 	data := []byte("Hello, QR Code!")

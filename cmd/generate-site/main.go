@@ -92,9 +92,9 @@ type FailuresByType struct {
 }
 
 type ConditionFailures struct {
-	Condition string `json:"condition"`
-	Failures  int    `json:"failures"`
-	Total     int    `json:"total"`
+	Condition string  `json:"condition"`
+	Failures  int     `json:"failures"`
+	Total     int     `json:"total"`
 	Rate      float64 `json:"rate"`
 }
 
@@ -238,10 +238,10 @@ func loadResultsFromDir(dir string, results *[]RawTestResult) error {
 
 func computeEncoderStats(results []RawTestResult) []EncoderStats {
 	type encoderAgg struct {
-		totalTests   int
-		successes    int
-		totalEncMs   float64
-		byDecoder    map[string]*struct{ tests, successes int }
+		totalTests int
+		successes  int
+		totalEncMs float64
+		byDecoder  map[string]*struct{ tests, successes int }
 	}
 
 	agg := make(map[string]*encoderAgg)
@@ -312,10 +312,10 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 
 func computeDecoderStats(results []RawTestResult) []DecoderStats {
 	type decoderAgg struct {
-		totalTests   int
-		successes    int
-		totalDecMs   float64
-		byEncoder    map[string]*struct{ tests, successes int }
+		totalTests int
+		successes  int
+		totalDecMs float64
+		byEncoder  map[string]*struct{ tests, successes int }
 	}
 
 	agg := make(map[string]*decoderAgg)

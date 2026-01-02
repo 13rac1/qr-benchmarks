@@ -46,7 +46,7 @@ func TestIntegration_Skip2Gozxing(t *testing.T) {
 		t.Errorf("Unexpected encoders: %v", results.Encoders)
 	}
 
-	if len(results.Decoders) != 1 || results.Decoders[0] != "gozxing" {
+	if len(results.Decoders) != 1 || results.Decoders[0] != "makiuchi-d/gozxing" {
 		t.Errorf("Unexpected decoders: %v", results.Decoders)
 	}
 

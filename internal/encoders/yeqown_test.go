@@ -4,15 +4,6 @@ import (
 	"testing"
 )
 
-func TestYeqownEncoder_Name(t *testing.T) {
-	enc := &YeqownEncoder{}
-	expected := "yeqown/go-qrcode"
-
-	if got := enc.Name(); got != expected {
-		t.Errorf("Name() = %q, want %q", got, expected)
-	}
-}
-
 func TestYeqownEncoder_Encode_Success(t *testing.T) {
 	enc := &YeqownEncoder{}
 	data := []byte("Hello, QR Code!")

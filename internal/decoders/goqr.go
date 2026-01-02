@@ -17,7 +17,7 @@ type GoqrDecoder struct{}
 
 // Name returns the decoder identifier.
 func (d *GoqrDecoder) Name() string {
-	return "goqr"
+	return "liyue201/goqr"
 }
 
 // Decode extracts data from a QR code image.

@@ -16,7 +16,7 @@ type GozxingEncoder struct{}
 
 // Name returns the encoder identifier.
 func (e *GozxingEncoder) Name() string {
-	return "gozxing/encoder"
+	return "makiuchi-d/gozxing"
 }
 
 // Encode generates a QR code image from the input data.

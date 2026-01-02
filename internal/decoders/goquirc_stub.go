@@ -15,7 +15,7 @@ type GoquircDecoder struct{}
 
 // Name returns the decoder identifier.
 func (d *GoquircDecoder) Name() string {
-	return "goquirc"
+	return "kdar/goquirc"
 }
 
 // Decode always returns an error when CGO is not available.

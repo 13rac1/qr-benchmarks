@@ -17,7 +17,7 @@ type TuotooDecoder struct{}
 
 // Name returns the decoder identifier.
 func (d *TuotooDecoder) Name() string {
-	return "tuotoo"
+	return "tuotoo/qrcode"
 }
 
 // Decode extracts data from a QR code image.

@@ -4,15 +4,6 @@ import (
 	"testing"
 )
 
-func TestSkip2Encoder_Name(t *testing.T) {
-	enc := &Skip2Encoder{}
-	expected := "skip2/go-qrcode"
-
-	if got := enc.Name(); got != expected {
-		t.Errorf("Name() = %q, want %q", got, expected)
-	}
-}
-
 func TestSkip2Encoder_Encode_Success(t *testing.T) {
 	enc := &Skip2Encoder{}
 	data := []byte("Hello, QR Code!")

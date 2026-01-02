@@ -27,7 +27,7 @@ func TestGetAvailableDecoders_DefaultConfig(t *testing.T) {
 		names[dec.Name()] = true
 	}
 
-	expected := []string{"gozxing", "tuotoo", "goqr"}
+	expected := []string{"makiuchi-d/gozxing", "tuotoo/qrcode", "liyue201/goqr"}
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("GetAvailableDecoders() missing decoder %q", name)
@@ -36,8 +36,8 @@ func TestGetAvailableDecoders_DefaultConfig(t *testing.T) {
 
 	// Verify goquirc is included if CGO is enabled
 	if cgoEnabled() {
-		if !names["goquirc"] {
-			t.Error("GetAvailableDecoders() should include goquirc when CGO is enabled")
+		if !names["kdar/goquirc"] {
+			t.Error("GetAvailableDecoders() should include kdar/goquirc when CGO is enabled")
 		}
 	}
 }
@@ -56,8 +56,8 @@ func TestGetAvailableDecoders_SkipArchived(t *testing.T) {
 
 	// Verify goqr is excluded
 	for _, dec := range decoders {
-		if dec.Name() == "goqr" {
-			t.Error("GetAvailableDecoders() with SkipArchived should not include goqr")
+		if dec.Name() == "liyue201/goqr" {
+			t.Error("GetAvailableDecoders() with SkipArchived should not include liyue201/goqr")
 		}
 	}
 
@@ -67,7 +67,7 @@ func TestGetAvailableDecoders_SkipArchived(t *testing.T) {
 		names[dec.Name()] = true
 	}
 
-	expected := []string{"gozxing", "tuotoo"}
+	expected := []string{"makiuchi-d/gozxing", "tuotoo/qrcode"}
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("GetAvailableDecoders() missing decoder %q", name)
@@ -89,8 +89,8 @@ func TestGetAvailableDecoders_SkipCGO(t *testing.T) {
 
 	// Verify goquirc is excluded even if CGO is available
 	for _, dec := range decoders {
-		if dec.Name() == "goquirc" {
-			t.Error("GetAvailableDecoders() with SkipCGO should not include goquirc")
+		if dec.Name() == "kdar/goquirc" {
+			t.Error("GetAvailableDecoders() with SkipCGO should not include kdar/goquirc")
 		}
 	}
 }
@@ -114,7 +114,7 @@ func TestGetAvailableDecoders_SkipBoth(t *testing.T) {
 		names[dec.Name()] = true
 	}
 
-	expected := []string{"gozxing", "tuotoo"}
+	expected := []string{"makiuchi-d/gozxing", "tuotoo/qrcode"}
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("GetAvailableDecoders() missing decoder %q", name)
@@ -141,7 +141,7 @@ func TestGetAllDecoders(t *testing.T) {
 		names[dec.Name()] = true
 	}
 
-	expected := []string{"gozxing", "tuotoo", "goqr"}
+	expected := []string{"makiuchi-d/gozxing", "tuotoo/qrcode", "liyue201/goqr"}
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("GetAllDecoders() missing decoder %q", name)
@@ -150,12 +150,12 @@ func TestGetAllDecoders(t *testing.T) {
 
 	// Verify goquirc is included if CGO is enabled
 	if cgoEnabled() {
-		if !names["goquirc"] {
-			t.Error("GetAllDecoders() should include goquirc when CGO is enabled")
+		if !names["kdar/goquirc"] {
+			t.Error("GetAllDecoders() should include kdar/goquirc when CGO is enabled")
 		}
 	} else {
-		if names["goquirc"] {
-			t.Error("GetAllDecoders() should not include goquirc when CGO is disabled")
+		if names["kdar/goquirc"] {
+			t.Error("GetAllDecoders() should not include kdar/goquirc when CGO is disabled")
 		}
 	}
 }
@@ -178,7 +178,7 @@ func TestGetAvailableDecoders_AlwaysIncludesCoreDecoders(t *testing.T) {
 		names[dec.Name()] = true
 	}
 
-	core := []string{"gozxing", "tuotoo"}
+	core := []string{"makiuchi-d/gozxing", "tuotoo/qrcode"}
 	for _, name := range core {
 		if !names[name] {
 			t.Errorf("GetAvailableDecoders() should always include core decoder %q", name)
