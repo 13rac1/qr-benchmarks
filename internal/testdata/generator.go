@@ -4,6 +4,7 @@ package testdata
 import (
 	"math/rand"
 	"strings"
+	"unicode/utf8"
 )
 
 // ContentType identifies the character set used in test data.
@@ -350,6 +351,9 @@ func generateAlphanumeric(size int) []byte {
 // The data is deterministic: repeating pattern of mixed-script text.
 // This represents real-world international data and demonstrates encoding
 // mode correlation with decoder behavior.
+//
+// Important: Truncates at valid UTF-8 character boundaries to avoid splitting
+// multi-byte sequences. Actual size may be slightly less than requested.
 func generateUTF8(size int) []byte {
 	if size <= 0 {
 		return []byte{}
@@ -364,7 +368,14 @@ func generateUTF8(size int) []byte {
 		result = append(result, []byte(pattern)...)
 	}
 
-	return result[:size]
+	// Truncate at valid UTF-8 character boundary
+	// Walk backwards until we find a valid UTF-8 sequence
+	truncated := result[:size]
+	for !utf8.Valid(truncated) && len(truncated) > 0 {
+		truncated = truncated[:len(truncated)-1]
+	}
+
+	return truncated
 }
 
 // generateBinary creates deterministic pseudo-random binary data.
