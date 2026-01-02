@@ -59,20 +59,20 @@ ls results/
 ### Prerequisites
 
 - Go 1.20 or later
-- (Optional) C compiler for CGO support (goquirc decoder)
+- C compiler (Xcode CLI tools on macOS, gcc on Linux)
 
 ### Build Options
 
-**Without CGO (3 decoders, portable)**:
+**Default build (4 decoders, includes goquirc via CGO)**:
 ```bash
 make build
 # Creates: bin/qr-tester
 ```
 
-**With CGO (4 decoders, includes goquirc)**:
+**Without CGO (3 decoders, portable)**:
 ```bash
-make build-cgo
-# Creates: bin/qr-tester-cgo
+make build-nocgo
+# Creates: bin/qr-tester-nocgo
 ```
 
 ### Install Dependencies
@@ -93,7 +93,7 @@ Run all tests with default settings:
 ```
 
 This tests:
-- 4 encoders × 3 decoders (or 4 with CGO) = 12-16 combinations
+- 4 encoders × 4 decoders = 16 combinations
 - 6 data sizes: 500, 550, 600, 650, 750, 800 bytes
 - 8 pixel sizes: 320, 400, 440, 450, 460, 480, 512, 560 pixels
 - 4 error correction levels: L, M, Q, H
@@ -287,15 +287,14 @@ qr-library-test/
 ### Running Tests
 
 ```bash
-# Run all tests (no CGO)
+# Run all tests (with CGO)
 make test
 
-# Run tests with CGO
-make test-cgo
+# Run tests without CGO
+make test-nocgo
 
 # Generate coverage report
 make test-coverage
-# Opens coverage.html in browser
 ```
 
 ### Code Quality
@@ -427,18 +426,11 @@ If your decoder requires CGO:
 
 ### goquirc CGO Requirement
 
-**Issue**: Requires C compiler and libquirc.
+**Requirement**: C compiler (Xcode CLI tools on macOS, gcc on Linux).
 
-**Build**:
-```bash
-# Install libquirc (varies by OS)
-# macOS: brew install quirc
-# Ubuntu: apt-get install libquirc-dev
+**Build**: libquirc is vendored and built automatically by `make build`.
 
-make build-cgo
-```
-
-**Skip**: Use `-skip-cgo=true` or build without CGO (`make build`).
+**Skip**: Use `-skip-cgo=true` at runtime or `make build-nocgo` to build without CGO.
 
 **Why CGO**: goquirc wraps the C library "quirc", a fast and reliable decoder used in embedded systems.
 
