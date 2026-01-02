@@ -21,6 +21,7 @@ vendor/github.com/kdar/goquirc/internal: vendor
 		(echo "Error: goquirc sources not found at $(GOQUIRC_SRC)/internal" && exit 1)
 	mkdir -p vendor/github.com/kdar/goquirc
 	cp -r "$(GOQUIRC_SRC)/internal" vendor/github.com/kdar/goquirc/
+	chmod -R u+w vendor/github.com/kdar/goquirc/internal
 	@touch vendor/github.com/kdar/goquirc/internal
 
 # Build C library in vendor directory
