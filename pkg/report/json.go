@@ -35,6 +35,7 @@ type RawTestResult struct {
 	Success            bool    `json:"success"`
 	ErrorType          string  `json:"errorType,omitempty"` // "encode", "decode", "dataMismatch"
 	ErrorMsg           string  `json:"errorMsg,omitempty"`
+	IsCapacityExceeded bool    `json:"isCapacityExceeded,omitempty"`
 	EncodeTimeMs       float64 `json:"encodeTimeMs"`
 	DecodeTimeMs       float64 `json:"decodeTimeMs"`
 	QRVersion          int     `json:"qrVersion,omitempty"`
@@ -126,6 +127,7 @@ func convertResult(result matrix.TestResult) RawTestResult {
 		PixelSize:          result.PixelSize,
 		ContentType:        result.ContentType,
 		Success:            result.Error == nil,
+		IsCapacityExceeded: result.IsCapacityExceeded,
 		EncodeTimeMs:       toMilliseconds(result.EncodeTime),
 		DecodeTimeMs:       toMilliseconds(result.DecodeTime),
 		QRVersion:          result.QRVersion,

@@ -4,8 +4,9 @@
 {{ with .Site.Data.summary }}
 <div class="summary-cards">
   <div class="card">
-    <h3>Total Tests</h3>
-    <div class="value">{{ .totalTests }}</div>
+    <h3>Effective Tests</h3>
+    <div class="value">{{ .effectiveTests }}</div>
+    <div class="subtext">{{ .capacitySkips }} capacity skips</div>
   </div>
   <div class="card">
     <h3>Success Rate</h3>
@@ -50,6 +51,7 @@
       <th>Success Rate</th>
       <th>Avg Encode Time</th>
       <th>Tests</th>
+      <th>Skips</th>
     </tr>
   </thead>
   <tbody>
@@ -61,7 +63,8 @@
         {{ printf "%.1f%%" .successRate }}
       </td>
       <td>{{ printf "%.2fms" .avgEncodeMs }}</td>
-      <td>{{ .totalTests }}</td>
+      <td>{{ .effectiveTests }}</td>
+      <td>{{ .capacitySkips }}</td>
     </tr>
     {{ end }}
   </tbody>
@@ -76,6 +79,7 @@
       <th>Success Rate</th>
       <th>Avg Decode Time</th>
       <th>Tests</th>
+      <th>Skips</th>
     </tr>
   </thead>
   <tbody>
@@ -87,7 +91,8 @@
         {{ printf "%.1f%%" .successRate }}
       </td>
       <td>{{ printf "%.2fms" .avgDecodeMs }}</td>
-      <td>{{ .totalTests }}</td>
+      <td>{{ .effectiveTests }}</td>
+      <td>{{ .capacitySkips }}</td>
     </tr>
     {{ end }}
   </tbody>

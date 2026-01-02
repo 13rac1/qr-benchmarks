@@ -39,4 +39,9 @@ type Encoder interface {
 	// Returns an error if encoding fails (e.g., data too large, invalid options).
 	// The returned image dimensions should match opts.PixelSize.
 	Encode(data []byte, opts EncodeOptions) (image.Image, error)
+
+	// IsCapacityError returns true if the error indicates the data exceeds
+	// QR code capacity at the requested size. These errors are valid rejections,
+	// not encoder bugs, and should be treated as skipped tests.
+	IsCapacityError(err error) bool
 }

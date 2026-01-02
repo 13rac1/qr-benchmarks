@@ -127,6 +127,7 @@ func (r *Runner) runTest(testCase testdata.TestCase, enc encoders.Encoder, dec d
 
 	if err != nil {
 		result.Error = EncodeError{Err: err}
+		result.IsCapacityExceeded = enc.IsCapacityError(err)
 		return result
 	}
 
@@ -176,21 +177,28 @@ func (r *Runner) printProgress(testNum, totalTests int, testCase testdata.TestCa
 	statusColor := "\033[32m" // Green
 
 	if result.Error != nil {
-		statusColor = "\033[31m" // Red
-
 		// Set status based on error type
 		var encErr EncodeError
 		var decErr DecodeError
 		var dataErr DataMismatchError
 
 		if errors.As(result.Error, &encErr) {
-			status = "✗ (encode)"
+			if result.IsCapacityExceeded {
+				status = "⊘ (skip)"
+				statusColor = "\033[33m" // Yellow
+			} else {
+				status = "✗ (encode)"
+				statusColor = "\033[31m" // Red
+			}
 		} else if errors.As(result.Error, &decErr) {
 			status = "✗ (decode)"
+			statusColor = "\033[31m" // Red
 		} else if errors.As(result.Error, &dataErr) {
 			status = "✗ (data)"
+			statusColor = "\033[31m" // Red
 		} else {
 			status = "✗"
+			statusColor = "\033[31m" // Red
 		}
 	}
 	reset := "\033[0m"

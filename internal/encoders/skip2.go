@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	_ "image/png"
+	"strings"
 
 	"github.com/skip2/go-qrcode"
 )
@@ -59,4 +60,9 @@ func (e *Skip2Encoder) Encode(data []byte, opts EncodeOptions) (image.Image, err
 	}
 
 	return img, nil
+}
+
+// IsCapacityError returns true if the error indicates data exceeds QR capacity.
+func (e *Skip2Encoder) IsCapacityError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "content too long to encode")
 }

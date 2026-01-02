@@ -4,6 +4,7 @@ package encoders
 import (
 	"fmt"
 	"image"
+	"strings"
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
@@ -53,4 +54,14 @@ func (e *BoombulerEncoder) Encode(data []byte, opts EncodeOptions) (image.Image,
 	}
 
 	return scaled, nil
+}
+
+// IsCapacityError returns true if the error indicates data exceeds QR capacity.
+func (e *BoombulerEncoder) IsCapacityError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "To much data to encode") ||
+		strings.Contains(msg, "can not scale barcode to an image smaller than")
 }

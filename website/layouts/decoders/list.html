@@ -11,7 +11,8 @@
       <th>Success Rate</th>
       <th>Avg Decode Time</th>
       <th>Successes</th>
-      <th>Total Tests</th>
+      <th>Tests</th>
+      <th>Skips</th>
     </tr>
   </thead>
   <tbody>
@@ -24,7 +25,8 @@
       </td>
       <td>{{ printf "%.2fms" .avgDecodeMs }}</td>
       <td>{{ .successCount }}</td>
-      <td>{{ .totalTests }}</td>
+      <td>{{ .effectiveTests }}</td>
+      <td>{{ .capacitySkips }}</td>
     </tr>
     {{ end }}
   </tbody>
@@ -41,6 +43,7 @@
       <th>Success Rate</th>
       <th>Successes</th>
       <th>Tests</th>
+      <th>Skips</th>
     </tr>
   </thead>
   <tbody>
@@ -51,7 +54,8 @@
         {{ printf "%.1f%%" $stats.successRate }}
       </td>
       <td>{{ $stats.successes }}</td>
-      <td>{{ $stats.tests }}</td>
+      <td>{{ $stats.effectiveTests }}</td>
+      <td>{{ $stats.capacitySkips }}</td>
     </tr>
     {{ end }}
   </tbody>

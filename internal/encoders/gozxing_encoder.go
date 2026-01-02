@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"strings"
 
 	"github.com/makiuchi-d/gozxing"
 	"github.com/makiuchi-d/gozxing/qrcode"
@@ -77,4 +78,9 @@ func bitMatrixToImage(matrix *gozxing.BitMatrix) image.Image {
 	}
 
 	return img
+}
+
+// IsCapacityError returns true if the error indicates data exceeds QR capacity.
+func (e *GozxingEncoder) IsCapacityError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "Data too big")
 }

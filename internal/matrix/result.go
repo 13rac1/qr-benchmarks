@@ -98,6 +98,11 @@ type TestResult struct {
 	//   - DecodeError: decoding failed (decoder issue)
 	//   - DataMismatchError: data corrupted (validation failure)
 	Error error
+
+	// IsCapacityExceeded indicates the encoder correctly reported that the data
+	// exceeds QR code capacity at the requested size. This is a valid rejection,
+	// not an encoder bug, and should be treated as a skipped test.
+	IsCapacityExceeded bool
 }
 
 // ModuleInfo captures QR code structural metadata.

@@ -60,6 +60,7 @@
       <th>Avg Encode</th>
       <th>Avg Decode</th>
       <th>Tests</th>
+      <th>Skips</th>
     </tr>
   </thead>
   <tbody>
@@ -73,7 +74,8 @@
       </td>
       <td>{{ printf "%.2fms" .avgEncodeMs }}</td>
       <td>{{ printf "%.2fms" .avgDecodeMs }}</td>
-      <td>{{ .tests }}</td>
+      <td>{{ .effectiveTests }}</td>
+      <td>{{ .capacitySkips }}</td>
     </tr>
     {{ end }}
   </tbody>

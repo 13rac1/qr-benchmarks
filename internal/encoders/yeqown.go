@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	_ "image/png"
+	"strings"
 
 	qrc "github.com/yeqown/go-qrcode/v2"
 	"github.com/yeqown/go-qrcode/writer/standard"
@@ -77,4 +78,9 @@ func (e *YeqownEncoder) Encode(data []byte, opts EncodeOptions) (image.Image, er
 	}
 
 	return img, nil
+}
+
+// IsCapacityError returns true if the error indicates data exceeds QR capacity.
+func (e *YeqownEncoder) IsCapacityError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "could not match version")
 }

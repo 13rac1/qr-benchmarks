@@ -19,6 +19,7 @@ type RawTestResult struct {
 	Success            bool    `json:"success"`
 	ErrorType          string  `json:"errorType,omitempty"`
 	ErrorMsg           string  `json:"errorMsg,omitempty"`
+	IsCapacityExceeded bool    `json:"isCapacityExceeded,omitempty"`
 	EncodeTimeMs       float64 `json:"encodeTimeMs"`
 	DecodeTimeMs       float64 `json:"decodeTimeMs"`
 	QRVersion          int     `json:"qrVersion,omitempty"`
@@ -35,43 +36,53 @@ type RawResults struct {
 // Output structures for Hugo
 
 type DecoderBreakdown struct {
-	SuccessRate float64 `json:"successRate"`
-	Tests       int     `json:"tests"`
-	Successes   int     `json:"successes"`
+	SuccessRate    float64 `json:"successRate"`
+	Tests          int     `json:"tests"`
+	Successes      int     `json:"successes"`
+	CapacitySkips  int     `json:"capacitySkips"`
+	EffectiveTests int     `json:"effectiveTests"` // Tests - CapacitySkips
 }
 
 type EncoderStats struct {
-	Name         string                      `json:"name"`
-	SuccessRate  float64                     `json:"successRate"`
-	AvgEncodeMs  float64                     `json:"avgEncodeMs"`
-	TotalTests   int                         `json:"totalTests"`
-	SuccessCount int                         `json:"successCount"`
-	ByDecoder    map[string]DecoderBreakdown `json:"byDecoder"`
+	Name           string                      `json:"name"`
+	SuccessRate    float64                     `json:"successRate"`
+	AvgEncodeMs    float64                     `json:"avgEncodeMs"`
+	TotalTests     int                         `json:"totalTests"`
+	SuccessCount   int                         `json:"successCount"`
+	CapacitySkips  int                         `json:"capacitySkips"`
+	EffectiveTests int                         `json:"effectiveTests"` // TotalTests - CapacitySkips
+	ByDecoder      map[string]DecoderBreakdown `json:"byDecoder"`
 }
 
 type EncoderBreakdown struct {
-	SuccessRate float64 `json:"successRate"`
-	Tests       int     `json:"tests"`
-	Successes   int     `json:"successes"`
+	SuccessRate    float64 `json:"successRate"`
+	Tests          int     `json:"tests"`
+	Successes      int     `json:"successes"`
+	CapacitySkips  int     `json:"capacitySkips"`
+	EffectiveTests int     `json:"effectiveTests"` // Tests - CapacitySkips
 }
 
 type DecoderStats struct {
-	Name         string                      `json:"name"`
-	SuccessRate  float64                     `json:"successRate"`
-	AvgDecodeMs  float64                     `json:"avgDecodeMs"`
-	TotalTests   int                         `json:"totalTests"`
-	SuccessCount int                         `json:"successCount"`
-	ByEncoder    map[string]EncoderBreakdown `json:"byEncoder"`
+	Name           string                      `json:"name"`
+	SuccessRate    float64                     `json:"successRate"`
+	AvgDecodeMs    float64                     `json:"avgDecodeMs"`
+	TotalTests     int                         `json:"totalTests"`
+	SuccessCount   int                         `json:"successCount"`
+	CapacitySkips  int                         `json:"capacitySkips"`
+	EffectiveTests int                         `json:"effectiveTests"` // TotalTests - CapacitySkips
+	ByEncoder      map[string]EncoderBreakdown `json:"byEncoder"`
 }
 
 type CombinationResult struct {
-	Encoder     string  `json:"encoder"`
-	Decoder     string  `json:"decoder"`
-	SuccessRate float64 `json:"successRate"`
-	Tests       int     `json:"tests"`
-	Successes   int     `json:"successes"`
-	AvgEncodeMs float64 `json:"avgEncodeMs"`
-	AvgDecodeMs float64 `json:"avgDecodeMs"`
+	Encoder        string  `json:"encoder"`
+	Decoder        string  `json:"decoder"`
+	SuccessRate    float64 `json:"successRate"`
+	Tests          int     `json:"tests"`
+	Successes      int     `json:"successes"`
+	CapacitySkips  int     `json:"capacitySkips"`
+	EffectiveTests int     `json:"effectiveTests"`
+	AvgEncodeMs    float64 `json:"avgEncodeMs"`
+	AvgDecodeMs    float64 `json:"avgDecodeMs"`
 }
 
 type BestCombination struct {
@@ -111,6 +122,8 @@ type SummaryData struct {
 	Timestamp       string          `json:"timestamp"`
 	TotalTests      int             `json:"totalTests"`
 	TotalSuccesses  int             `json:"totalSuccesses"`
+	CapacitySkips   int             `json:"capacitySkips"`
+	EffectiveTests  int             `json:"effectiveTests"`
 	OverallRate     float64         `json:"overallRate"`
 	BestEncoder     string          `json:"bestEncoder"`
 	BestDecoder     string          `json:"bestDecoder"`
@@ -238,10 +251,11 @@ func loadResultsFromDir(dir string, results *[]RawTestResult) error {
 
 func computeEncoderStats(results []RawTestResult) []EncoderStats {
 	type encoderAgg struct {
-		totalTests int
-		successes  int
-		totalEncMs float64
-		byDecoder  map[string]*struct{ tests, successes int }
+		totalTests    int
+		successes     int
+		capacitySkips int
+		totalEncMs    float64
+		byDecoder     map[string]*struct{ tests, successes, capacitySkips int }
 	}
 
 	agg := make(map[string]*encoderAgg)
@@ -249,7 +263,7 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 	for _, r := range results {
 		if agg[r.Encoder] == nil {
 			agg[r.Encoder] = &encoderAgg{
-				byDecoder: make(map[string]*struct{ tests, successes int }),
+				byDecoder: make(map[string]*struct{ tests, successes, capacitySkips int }),
 			}
 		}
 		a := agg[r.Encoder]
@@ -258,13 +272,19 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 		if r.Success {
 			a.successes++
 		}
+		if r.IsCapacityExceeded {
+			a.capacitySkips++
+		}
 
 		if a.byDecoder[r.Decoder] == nil {
-			a.byDecoder[r.Decoder] = &struct{ tests, successes int }{}
+			a.byDecoder[r.Decoder] = &struct{ tests, successes, capacitySkips int }{}
 		}
 		a.byDecoder[r.Decoder].tests++
 		if r.Success {
 			a.byDecoder[r.Decoder].successes++
+		}
+		if r.IsCapacityExceeded {
+			a.byDecoder[r.Decoder].capacitySkips++
 		}
 	}
 
@@ -272,20 +292,24 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 	for name, a := range agg {
 		byDec := make(map[string]DecoderBreakdown)
 		for dec, d := range a.byDecoder {
+			effectiveTests := d.tests - d.capacitySkips
 			rate := 0.0
-			if d.tests > 0 {
-				rate = float64(d.successes) / float64(d.tests) * 100
+			if effectiveTests > 0 {
+				rate = float64(d.successes) / float64(effectiveTests) * 100
 			}
 			byDec[dec] = DecoderBreakdown{
-				SuccessRate: rate,
-				Tests:       d.tests,
-				Successes:   d.successes,
+				SuccessRate:    rate,
+				Tests:          d.tests,
+				Successes:      d.successes,
+				CapacitySkips:  d.capacitySkips,
+				EffectiveTests: effectiveTests,
 			}
 		}
 
+		effectiveTests := a.totalTests - a.capacitySkips
 		rate := 0.0
-		if a.totalTests > 0 {
-			rate = float64(a.successes) / float64(a.totalTests) * 100
+		if effectiveTests > 0 {
+			rate = float64(a.successes) / float64(effectiveTests) * 100
 		}
 		avgEnc := 0.0
 		if a.totalTests > 0 {
@@ -293,12 +317,14 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 		}
 
 		stats = append(stats, EncoderStats{
-			Name:         name,
-			SuccessRate:  rate,
-			AvgEncodeMs:  avgEnc,
-			TotalTests:   a.totalTests,
-			SuccessCount: a.successes,
-			ByDecoder:    byDec,
+			Name:           name,
+			SuccessRate:    rate,
+			AvgEncodeMs:    avgEnc,
+			TotalTests:     a.totalTests,
+			SuccessCount:   a.successes,
+			CapacitySkips:  a.capacitySkips,
+			EffectiveTests: effectiveTests,
+			ByDecoder:      byDec,
 		})
 	}
 
@@ -312,10 +338,11 @@ func computeEncoderStats(results []RawTestResult) []EncoderStats {
 
 func computeDecoderStats(results []RawTestResult) []DecoderStats {
 	type decoderAgg struct {
-		totalTests int
-		successes  int
-		totalDecMs float64
-		byEncoder  map[string]*struct{ tests, successes int }
+		totalTests    int
+		successes     int
+		capacitySkips int
+		totalDecMs    float64
+		byEncoder     map[string]*struct{ tests, successes, capacitySkips int }
 	}
 
 	agg := make(map[string]*decoderAgg)
@@ -323,7 +350,7 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 	for _, r := range results {
 		if agg[r.Decoder] == nil {
 			agg[r.Decoder] = &decoderAgg{
-				byEncoder: make(map[string]*struct{ tests, successes int }),
+				byEncoder: make(map[string]*struct{ tests, successes, capacitySkips int }),
 			}
 		}
 		a := agg[r.Decoder]
@@ -332,13 +359,19 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 		if r.Success {
 			a.successes++
 		}
+		if r.IsCapacityExceeded {
+			a.capacitySkips++
+		}
 
 		if a.byEncoder[r.Encoder] == nil {
-			a.byEncoder[r.Encoder] = &struct{ tests, successes int }{}
+			a.byEncoder[r.Encoder] = &struct{ tests, successes, capacitySkips int }{}
 		}
 		a.byEncoder[r.Encoder].tests++
 		if r.Success {
 			a.byEncoder[r.Encoder].successes++
+		}
+		if r.IsCapacityExceeded {
+			a.byEncoder[r.Encoder].capacitySkips++
 		}
 	}
 
@@ -346,20 +379,24 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 	for name, a := range agg {
 		byEnc := make(map[string]EncoderBreakdown)
 		for enc, e := range a.byEncoder {
+			effectiveTests := e.tests - e.capacitySkips
 			rate := 0.0
-			if e.tests > 0 {
-				rate = float64(e.successes) / float64(e.tests) * 100
+			if effectiveTests > 0 {
+				rate = float64(e.successes) / float64(effectiveTests) * 100
 			}
 			byEnc[enc] = EncoderBreakdown{
-				SuccessRate: rate,
-				Tests:       e.tests,
-				Successes:   e.successes,
+				SuccessRate:    rate,
+				Tests:          e.tests,
+				Successes:      e.successes,
+				CapacitySkips:  e.capacitySkips,
+				EffectiveTests: effectiveTests,
 			}
 		}
 
+		effectiveTests := a.totalTests - a.capacitySkips
 		rate := 0.0
-		if a.totalTests > 0 {
-			rate = float64(a.successes) / float64(a.totalTests) * 100
+		if effectiveTests > 0 {
+			rate = float64(a.successes) / float64(effectiveTests) * 100
 		}
 		avgDec := 0.0
 		if a.totalTests > 0 {
@@ -367,12 +404,14 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 		}
 
 		stats = append(stats, DecoderStats{
-			Name:         name,
-			SuccessRate:  rate,
-			AvgDecodeMs:  avgDec,
-			TotalTests:   a.totalTests,
-			SuccessCount: a.successes,
-			ByEncoder:    byEnc,
+			Name:           name,
+			SuccessRate:    rate,
+			AvgDecodeMs:    avgDec,
+			TotalTests:     a.totalTests,
+			SuccessCount:   a.successes,
+			CapacitySkips:  a.capacitySkips,
+			EffectiveTests: effectiveTests,
+			ByEncoder:      byEnc,
 		})
 	}
 
@@ -386,10 +425,11 @@ func computeDecoderStats(results []RawTestResult) []DecoderStats {
 
 func computeCombinations(results []RawTestResult) CombinationsData {
 	type combAgg struct {
-		tests     int
-		successes int
-		encMs     float64
-		decMs     float64
+		tests         int
+		successes     int
+		capacitySkips int
+		encMs         float64
+		decMs         float64
 	}
 
 	agg := make(map[string]*combAgg)
@@ -406,6 +446,9 @@ func computeCombinations(results []RawTestResult) CombinationsData {
 		if r.Success {
 			a.successes++
 		}
+		if r.IsCapacityExceeded {
+			a.capacitySkips++
+		}
 	}
 
 	var matrix []CombinationResult
@@ -413,9 +456,10 @@ func computeCombinations(results []RawTestResult) CombinationsData {
 
 	for key, a := range agg {
 		parts := splitKey(key)
+		effectiveTests := a.tests - a.capacitySkips
 		rate := 0.0
-		if a.tests > 0 {
-			rate = float64(a.successes) / float64(a.tests) * 100
+		if effectiveTests > 0 {
+			rate = float64(a.successes) / float64(effectiveTests) * 100
 		}
 		avgEnc := 0.0
 		avgDec := 0.0
@@ -425,13 +469,15 @@ func computeCombinations(results []RawTestResult) CombinationsData {
 		}
 
 		cr := CombinationResult{
-			Encoder:     parts[0],
-			Decoder:     parts[1],
-			SuccessRate: rate,
-			Tests:       a.tests,
-			Successes:   a.successes,
-			AvgEncodeMs: avgEnc,
-			AvgDecodeMs: avgDec,
+			Encoder:        parts[0],
+			Decoder:        parts[1],
+			SuccessRate:    rate,
+			Tests:          a.tests,
+			Successes:      a.successes,
+			CapacitySkips:  a.capacitySkips,
+			EffectiveTests: effectiveTests,
+			AvgEncodeMs:    avgEnc,
+			AvgDecodeMs:    avgDec,
 		}
 		matrix = append(matrix, cr)
 
@@ -465,6 +511,11 @@ func computeFailures(results []RawTestResult) FailuresData {
 	var integerFailures, integerTotal int
 
 	for _, r := range results {
+		// Skip capacity exceeded - these are valid rejections, not failures
+		if r.IsCapacityExceeded {
+			continue
+		}
+
 		if !r.Success {
 			switch r.ErrorType {
 			case "encode":
@@ -600,15 +651,20 @@ func computeFailures(results []RawTestResult) FailuresData {
 func computeSummary(results []RawTestResult, encoders []EncoderStats, decoders []DecoderStats, combinations CombinationsData) SummaryData {
 	total := len(results)
 	successes := 0
+	capacitySkips := 0
 	for _, r := range results {
 		if r.Success {
 			successes++
 		}
+		if r.IsCapacityExceeded {
+			capacitySkips++
+		}
 	}
 
+	effectiveTests := total - capacitySkips
 	rate := 0.0
-	if total > 0 {
-		rate = float64(successes) / float64(total) * 100
+	if effectiveTests > 0 {
+		rate = float64(successes) / float64(effectiveTests) * 100
 	}
 
 	bestEncoder := ""
@@ -625,6 +681,8 @@ func computeSummary(results []RawTestResult, encoders []EncoderStats, decoders [
 		Timestamp:       time.Now().UTC().Format(time.RFC3339),
 		TotalTests:      total,
 		TotalSuccesses:  successes,
+		CapacitySkips:   capacitySkips,
+		EffectiveTests:  effectiveTests,
 		OverallRate:     rate,
 		BestEncoder:     bestEncoder,
 		BestDecoder:     bestDecoder,
