@@ -11,7 +11,6 @@ func GetAvailableEncoders(cfg *config.Config) []Encoder {
 		&BoombulerEncoder{},
 		&YeqownEncoder{},
 		&GozxingEncoder{},
-		&GqrcodeEncoder{},
 	}
 
 	return encoders
@@ -24,6 +23,5 @@ func GetAllEncoders() []Encoder {
 		&BoombulerEncoder{},
 		&YeqownEncoder{},
 		&GozxingEncoder{},
-		&GqrcodeEncoder{},
 	}
 }

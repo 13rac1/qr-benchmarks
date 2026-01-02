@@ -454,6 +454,18 @@ make build-cgo
 
 While the library works on Linux, the maintenance burden to patch the vendored OpenCV code for macOS cross-platform support was not justified given that we already have 4 working pure-Go encoders.
 
+### KangSpace/gqrcode (Removed)
+
+**Status**: Removed from this project.
+
+**Reason**: The library silently truncates data that exceeds QR code capacity limits instead of returning an error. When encoding 500 bytes of data, the library logs a warning but proceeds to create a QR code containing only 20 bytes:
+
+```
+[WARN] buildCharacterCountIndicator: Data length is too long, it will be trim to max count by rule "Table3 - Number of bits in character count indicator for QR Code", max count is :20
+```
+
+This silent data corruption makes the library unsuitable for production use. Other encoders like skip2/go-qrcode properly return an error (`content too long to encode`) when data exceeds capacity.
+
 ## FAQ
 
 **Q: Which encoder/decoder combination should I use?**
